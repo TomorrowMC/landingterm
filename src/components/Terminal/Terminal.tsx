@@ -42,29 +42,65 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   const [commandBlocks, setCommandBlocks] = useState<CommandBlock[]>([]);
   const [currentDir, setCurrentDir] = useState<string>('~');
   const [blockId, setBlockId] = useState(0);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const isUserScrolling = useRef(false);
+  const scrollTimeout = useRef<NodeJS.Timeout>();
+  const [isExecuting, setIsExecuting] = useState(false);
+  const lastOutputRef = useRef<string>('');
 
+  // 简化的滚动到底部函数
+  const scrollToBottom = (delay: number = 0) => {
+    setTimeout(() => {
+      const terminal = terminalRef.current;
+      if (terminal) {
+        terminal.scrollTo({
+          top: terminal.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    }, delay);
+  };
+
+  // 监听滚动事件
   useEffect(() => {
-    // 初始化时获取当前目录
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+
+    const handleScroll = () => {
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
+
+      const isNearBottom = 
+        terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight < 20;
+
+      setAutoScroll(isNearBottom);
+    };
+
+    terminal.addEventListener('scroll', handleScroll);
+    return () => terminal.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // 监听命令块变化
+  useEffect(() => {
+    if (commandBlocks.length > 0) {
+      scrollToBottom(50);
+    }
+  }, [commandBlocks]);
+
+  // 初始化终端
+  useEffect(() => {
     invoke<CommandResult>('execute_terminal_command', { command: 'pwd' })
       .then(result => {
         setCurrentDir(result.current_dir);
       })
       .catch(console.error);
 
-    // 创建新的终端进程
     invoke('create_terminal', { id });
     return () => {
-      // 清理终端进程
       invoke('close_terminal', { id });
     };
   }, [id]);
-
-  // 确保终端始终滚动到底部
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [commandBlocks]);
 
   // 确保终端始终获得焦点
   useEffect(() => {
@@ -81,6 +117,10 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
       e.preventDefault();
       
       try {
+        setIsExecuting(true);
+        setAutoScroll(true); // 确保启用自动滚动
+        scrollToBottom(0); // 立即滚动到底部显示输入的命令
+        
         const result = await invoke<CommandResult>('execute_terminal_command', { command: input });
         const newBlock: CommandBlock = {
           id: blockId,
@@ -96,6 +136,10 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
         setBlockId(prev => prev + 1);
         setCurrentDir(result.current_dir);
         setInput('');
+        
+        // 命令执行完成后滚动
+        scrollToBottom(50);
+        setIsExecuting(false);
       } catch (error) {
         const errorBlock: CommandBlock = {
           id: blockId,
@@ -106,18 +150,36 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
         setCommandBlocks(prev => [...prev, errorBlock]);
         setBlockId(prev => prev + 1);
         setInput('');
+        setIsExecuting(false);
+        scrollToBottom(50);
       }
     }
   };
 
   return (
     <div className="terminal-wrapper">
-      <div className="terminal-container" ref={terminalRef}>
-        <div className="terminal-blocks">
-          {commandBlocks.map((block) => (
-            <CommandBlockComponent key={block.id} {...block} />
-          ))}
+      <div className="terminal-scroll-container" ref={terminalRef}>
+        <div className="terminal-content">
+          <div className="terminal-blocks">
+            {commandBlocks.map((block) => (
+              <CommandBlockComponent key={block.id} {...block} />
+            ))}
+          </div>
         </div>
+        {!autoScroll && (
+          <button 
+            className="scroll-to-bottom"
+            onClick={() => {
+              setAutoScroll(true);
+              scrollToBottom();
+            }}
+            title="Scroll to bottom"
+          >
+            ↓
+          </button>
+        )}
+      </div>
+      <div className="terminal-input-container">
         <div className="terminal-input-line">
           <span className="prompt">{currentDir} $ </span>
           <input
