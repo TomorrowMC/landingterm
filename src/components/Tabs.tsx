@@ -117,20 +117,24 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      // 检查是否是 CMD+W (Mac) 或 CTRL+W (Windows/Linux)
+      // CMD+W 关闭标签页
       if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
         e.preventDefault();
         
         if (tabs.length <= 1) {
-          // 如果只剩最后一个标签页，关闭应用程序
           await appWindow.close();
         } else {
-          // 关闭当前活动的标签页
           const activeTab = tabs.find(tab => tab.active);
           if (activeTab) {
             closeTab(activeTab.id, e as unknown as React.MouseEvent);
           }
         }
+      }
+      
+      // CMD+T 新建标签页
+      if ((e.metaKey || e.ctrlKey) && e.key === 't') {
+        e.preventDefault();
+        addTab();
       }
     };
 
@@ -147,6 +151,7 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
             className={`tab ${tab.active ? 'active' : ''}`}
             onClick={() => switchTab(tab.id)}
             onDoubleClick={() => handleDoubleClick(tab.id)}
+            title={`${tab.name} (⌘T to create, ⌘W to close)`}
           >
             {editingTab === tab.id ? (
               <input
@@ -173,7 +178,7 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
         <button 
           className="new-tab" 
           onClick={addTab}
-          title="New terminal"
+          title="New terminal (⌘T)"
         >
           +
         </button>
