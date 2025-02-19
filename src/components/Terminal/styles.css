@@ -141,25 +141,51 @@
 }
 
 .scroll-to-bottom {
-  position: absolute;
-  right: 20px;
-  bottom: 80px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
+  position: fixed;
+  right: 48px;  /* 增加右侧距离 */
+  bottom: 100px;
+  background: rgba(60, 60, 60, 0.8);  /* 半透明灰色 */
   border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
+  border-radius: 8px;  /* 改为圆角矩形 */
+  width: 40px;  /* 稍微调整宽度 */
+  height: 32px;  /* 降低高度使其更像矩形 */
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  opacity: 0.6;
-  font-size: 18px;
+  opacity: 0;
+  transform: translateY(20px);
+  z-index: 1000;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);  /* 添加阴影 */
+  font-size: 14px;  /* 调整箭头大小 */
+}
+
+.scroll-to-bottom.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .scroll-to-bottom:hover {
+  background: rgba(70, 70, 70, 0.9);  /* 悬停时稍微不透明 */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);  /* 悬停时阴影更明显 */
+}
+
+.scroll-to-bottom:active {
+  transform: translateY(0);
+  background: rgba(50, 50, 50, 0.85);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.scroll-to-bottom-icon {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  opacity: 0.8;
+}
+
+.scroll-to-bottom:hover .scroll-to-bottom-icon {
   opacity: 1;
-  background: rgba(0, 0, 0, 0.8);
 } 

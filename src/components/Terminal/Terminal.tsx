@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
 import './styles.css';
+import { IconChevronDown } from '@tabler/icons-react';
 
 interface TerminalProps {
   id: string;
@@ -166,19 +167,19 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
             ))}
           </div>
         </div>
-        {!autoScroll && (
-          <button 
-            className="scroll-to-bottom"
-            onClick={() => {
-              setAutoScroll(true);
-              scrollToBottom();
-            }}
-            title="Scroll to bottom"
-          >
-            ↓
-          </button>
-        )}
       </div>
+      {!autoScroll && (
+        <button 
+          className={`scroll-to-bottom ${!autoScroll ? 'visible' : ''}`}
+          onClick={() => {
+            setAutoScroll(true);
+            scrollToBottom();
+          }}
+          title="Scroll to bottom"
+        >
+          ▼
+        </button>
+      )}
       <div className="terminal-input-container">
         <div className="terminal-input-line">
           <span className="prompt">{currentDir} $ </span>
