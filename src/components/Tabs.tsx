@@ -115,6 +115,20 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
     }
   };
 
+  const switchToNextTab = () => {
+    const currentIndex = tabs.findIndex(tab => tab.active);
+    const nextIndex = (currentIndex + 1) % tabs.length;
+    const nextTab = tabs[nextIndex];
+    switchTab(nextTab.id);
+  };
+
+  const switchToPreviousTab = () => {
+    const currentIndex = tabs.findIndex(tab => tab.active);
+    const previousIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    const previousTab = tabs[previousIndex];
+    switchTab(previousTab.id);
+  };
+
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       // CMD+W 关闭标签页
@@ -136,6 +150,18 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
         e.preventDefault();
         addTab();
       }
+
+      // Control+Tab 切换到下一个标签页
+      if (e.ctrlKey && e.key === 'Tab') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Control+Shift+Tab 切换到上一个标签页
+          switchToPreviousTab();
+        } else {
+          // Control+Tab 切换到下一个标签页
+          switchToNextTab();
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -151,7 +177,7 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
             className={`tab ${tab.active ? 'active' : ''}`}
             onClick={() => switchTab(tab.id)}
             onDoubleClick={() => handleDoubleClick(tab.id)}
-            title={`${tab.name} (⌘T to create, ⌘W to close)`}
+            title={`${tab.name} (⌘T to create, ⌘W to close, Ctrl+Tab to switch)`}
           >
             {editingTab === tab.id ? (
               <input
