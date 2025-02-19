@@ -18,6 +18,10 @@
         "execute": true,
         "sidecar": false,
         "open": true
+      },
+      "window": {
+        "close": true,
+        "startDragging": true
       }
     },
     "bundle": {

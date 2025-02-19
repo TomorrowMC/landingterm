@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
+import { appWindow } from '@tauri-apps/api/window';
 import '../styles/tabs.css';
 
 interface Tab {
@@ -113,6 +114,29 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
       setEditingTab(null);
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // 检查是否是 CMD+W (Mac) 或 CTRL+W (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
+        e.preventDefault();
+        
+        if (tabs.length <= 1) {
+          // 如果只剩最后一个标签页，关闭应用程序
+          await appWindow.close();
+        } else {
+          // 关闭当前活动的标签页
+          const activeTab = tabs.find(tab => tab.active);
+          if (activeTab) {
+            closeTab(activeTab.id, e as unknown as React.MouseEvent);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [tabs]); // 依赖于 tabs 数组
 
   return (
     <div className="tabs-container">
