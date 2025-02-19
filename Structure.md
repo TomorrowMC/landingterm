@@ -1,33 +1,33 @@
-# 项目结构说明
+# Project Structure
 
-## 前端部分 (src/)
-- src/
-  - components/
-    - Terminal/
-      - Terminal.tsx         # 终端主组件（处理命令输入和显示）
-      - styles.css          # 终端样式文件
-  - App.tsx                 # 应用主入口
-  - main.tsx               # React入口文件
-  - App.css                # 应用全局样式
-  - index.css              # 全局基础样式
-  - vite-env.d.ts         # Vite类型声明文件
+## Frontend (React + TypeScript)
+- `src/`
+  - `components/`
+    - `Terminal/`
+      - `Terminal.tsx` - 主终端组件
+      - `styles.css` - 终端样式
+    - `Tabs.tsx` - 标签页管理组件
+  - `App.tsx` - 主应用组件
+  - `App.css` - 全局样式
+  - `main.tsx` - 应用入口
 
-## 后端部分 (src-tauri/)
-- src-tauri/
-  - src/
-    - main.rs              # Rust主入口文件（处理前端命令调用）
-    - terminal/
-      - mod.rs            # 终端模块声明
-      - process.rs        # 终端命令执行处理
-  - Cargo.toml            # Rust依赖配置
-  - tauri.conf.json      # Tauri应用配置
-  - icons/               # 应用图标目录
+## Backend (Rust + Tauri)
+- `src-tauri/`
+  - `src/`
+    - `lib.rs` - 主库文件，包含 Tauri 插件初始化
+    - `terminal/`
+      - `mod.rs` - 终端模块定义
+      - `process.rs` - 终端进程管理
+  - `Cargo.toml` - Rust 依赖配置
+  - `tauri.conf.json` - Tauri 配置文件
+
+## Key Files
+- `package.json` - 前端依赖配置
+- `tsconfig.json` - TypeScript 配置
+- `vite.config.ts` - Vite 构建配置
 
 ## 配置文件
-- package.json           # Node.js项目配置
-- vite.config.ts        # Vite构建配置
-- tsconfig.json         # TypeScript配置
-- .gitignore            # Git忽略配置
+- `.gitignore`            # Git忽略配置
 
 ## 功能说明
 - 前端部分：
