@@ -4,22 +4,17 @@
     windows_subsystem = "windows"
 )]
 
-mod terminal;
-use terminal::process::CommandOutput;
+use app::terminal;
 
 #[tauri::command]
-async fn execute_cmd(command: String) -> Result<CommandOutput, String> {
-    println!("Executing command: {}", command);
-    terminal::process::execute_command(&command).map_err(|e| {
-        println!("Command error: {}", e);
-        e.to_string()
-    })
+async fn execute_terminal_command(command: String) -> Result<terminal::process::CommandOutput, String> {
+    terminal::process::execute_command(&command).await
 }
 
 fn main() {
     println!("Starting Landing Terminal...");
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![execute_cmd])
+        .invoke_handler(tauri::generate_handler![execute_terminal_command])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

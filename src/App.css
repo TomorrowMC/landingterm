@@ -147,3 +147,24 @@ button {
   height: 30px;
   color: #ffffff;
 }
+
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #1e1e1e;
+  color: #fff;
+}
+
+.terminal-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.terminals-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}

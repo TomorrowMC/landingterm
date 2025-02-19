@@ -20,6 +20,7 @@ serde = { version = "1.0", features = ["derive"] }
 tauri = { version = "1.2.4", features = [ "shell-all"] }
 tauri-plugin-opener = "1.0"
 lazy_static = "1.4.0"
+once_cell = "1.18.0"
 
 [features]
 default = [ "custom-protocol" ]

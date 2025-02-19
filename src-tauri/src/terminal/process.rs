@@ -1,15 +1,21 @@
 use serde::Serialize;
-use std::process::Command;
+use std::process::{Child, Command};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use lazy_static::lazy_static;
+use std::collections::HashMap;
+use once_cell::sync::Lazy;
 
 lazy_static! {
     static ref CURRENT_DIR: Mutex<PathBuf> = Mutex::new(
         env::var("HOME").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from("/"))
     );
 }
+
+// 存储所有终端进程的全局 HashMap
+static TERMINAL_PROCESSES: Lazy<Mutex<HashMap<String, TerminalProcess>>> = 
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Serialize)]
 pub struct CommandOutput {
@@ -18,11 +24,44 @@ pub struct CommandOutput {
     pub current_dir: String,
 }
 
-#[cfg(target_os = "macos")]
-pub fn execute_command(command: &str) -> Result<CommandOutput, std::io::Error> {
+#[allow(dead_code)]
+pub struct TerminalProcess {
+    process: Child,
+    current_dir: PathBuf,
+}
+
+impl TerminalProcess {
+    pub fn new() -> Result<Self, String> {
+        let home_dir = env::var("HOME").unwrap_or_default();
+        let current_dir = PathBuf::from(&home_dir);
+
+        #[cfg(target_os = "macos")]
+        let process = Command::new("zsh")
+            .current_dir(&current_dir)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+
+        #[cfg(not(target_os = "macos"))]
+        let process = Command::new("bash")
+            .current_dir(&current_dir)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+
+        Ok(TerminalProcess {
+            process,
+            current_dir,
+        })
+    }
+
+    pub fn kill(&mut self) -> Result<(), String> {
+        self.process.kill().map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn execute_command(command: &str) -> Result<CommandOutput, String> {
     let mut current_dir = CURRENT_DIR.lock().unwrap();
     
-    // 特殊处理 cd 命令
     if command.trim().starts_with("cd") {
         let parts: Vec<&str> = command.trim().splitn(2, ' ').collect();
         let new_dir = parts.get(1).map(|s| s.trim()).unwrap_or("~");
@@ -70,7 +109,8 @@ pub fn execute_command(command: &str) -> Result<CommandOutput, std::io::Error> {
         .current_dir(&*current_dir)
         .arg("-c")
         .arg(command)
-        .output()?;
+        .output()
+        .map_err(|e| e.to_string())?;
 
     Ok(CommandOutput {
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
@@ -93,19 +133,21 @@ fn format_current_dir(path: &Path) -> String {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
-pub fn execute_command(command: &str) -> Result<CommandOutput, std::io::Error> {
-    let home_dir = env::var("HOME").unwrap_or_default();
-    
-    let output = Command::new("sh")
-        .current_dir(home_dir)
-        .arg("-c")
-        .arg(command)
-        .output()?;
-    
-    Ok(CommandOutput {
-        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-        current_dir: format_current_dir(&Path::new(&home_dir)),
-    })
+#[tauri::command]
+pub async fn create_terminal(id: String) -> Result<(), String> {
+    let mut processes = TERMINAL_PROCESSES.lock().unwrap();
+    if !processes.contains_key(&id) {
+        let process = TerminalProcess::new()?;
+        processes.insert(id, process);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn close_terminal(id: String) -> Result<(), String> {
+    let mut processes = TERMINAL_PROCESSES.lock().unwrap();
+    if let Some(mut process) = processes.remove(&id) {
+        process.kill()?;
+    }
+    Ok(())
 } 

@@ -37,6 +37,7 @@ const CommandBlockComponent: React.FC<CommandBlock> = ({ command, output, direct
 
 export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState<string>('');
   const [commandBlocks, setCommandBlocks] = useState<CommandBlock[]>([]);
   const [currentDir, setCurrentDir] = useState<string>('~');
@@ -44,11 +45,35 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
 
   useEffect(() => {
     // 初始化时获取当前目录
-    invoke<CommandResult>('execute_cmd', { command: 'pwd' })
+    invoke<CommandResult>('execute_terminal_command', { command: 'pwd' })
       .then(result => {
         setCurrentDir(result.current_dir);
       })
       .catch(console.error);
+
+    // 创建新的终端进程
+    invoke('create_terminal', { id });
+    return () => {
+      // 清理终端进程
+      invoke('close_terminal', { id });
+    };
+  }, [id]);
+
+  // 确保终端始终滚动到底部
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [commandBlocks]);
+
+  // 确保终端始终获得焦点
+  useEffect(() => {
+    const handleClick = () => {
+      inputRef.current?.focus();
+    };
+    
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
   }, []);
 
   const handleKeyPress = async (e: React.KeyboardEvent) => {
@@ -56,7 +81,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
       e.preventDefault();
       
       try {
-        const result = await invoke<CommandResult>('execute_cmd', { command: input });
+        const result = await invoke<CommandResult>('execute_terminal_command', { command: input });
         const newBlock: CommandBlock = {
           id: blockId,
           command: input,
@@ -85,12 +110,6 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     }
   };
 
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [commandBlocks]);
-
   return (
     <div className="terminal-wrapper">
       <div className="terminal-container" ref={terminalRef}>
@@ -102,6 +121,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
         <div className="terminal-input-line">
           <span className="prompt">{currentDir} $ </span>
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
