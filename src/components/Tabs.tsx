@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { appWindow } from '@tauri-apps/api/window';
-import { Menu } from '@tauri-apps/api';
 import '../styles/tabs.css';
 
 interface Tab {
@@ -237,19 +236,21 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
             onContextMenu={(e) => handleContextMenu(e, tab)}
             title={`${tab.name} (⌘T to create, ⌘W to close, Ctrl+Tab to switch)`}
           >
-            {editingTab === tab.id ? (
-              <input
-                type="text"
-                defaultValue={tab.name}
-                autoFocus
-                onBlur={(e) => handleNameChange(tab.id, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, tab.id)}
-                onClick={(e) => e.stopPropagation()}
-                className="tab-name-input"
-              />
-            ) : (
-              <span>{tab.name}</span>
-            )}
+            <div className="tab-content">
+              {editingTab === tab.id ? (
+                <input
+                  type="text"
+                  defaultValue={tab.name}
+                  autoFocus
+                  onBlur={(e) => handleNameChange(tab.id, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, tab.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="tab-name-input"
+                />
+              ) : (
+                <span className="tab-name">{tab.name}</span>
+              )}
+            </div>
             <button 
               className="close-tab"
               onClick={(e) => closeTab(tab.id, e)}
@@ -277,6 +278,15 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
           }}
           onClick={(e) => e.stopPropagation()}
         >
+          <div 
+            className="context-menu-item"
+            onClick={() => {
+              handleDoubleClick(contextMenu.tabId);
+              setContextMenu(prev => ({ ...prev, visible: false }));
+            }}
+          >
+            Rename Tab
+          </div>
           <div 
             className="context-menu-item"
             onClick={(e) => {

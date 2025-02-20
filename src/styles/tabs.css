@@ -14,7 +14,7 @@
 .tab {
   height: 32px;
   background: #2d2d2d;
-  padding: 0 16px;
+  padding: 0 8px 0 12px;
   border-radius: 6px 6px 0 0;
   display: flex;
   align-items: center;
@@ -153,4 +153,36 @@
 /* 添加分隔线 */
 .context-menu-item + .context-menu-item {
   border-top: 1px solid #3a3a3a;
+}
+
+.tab-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.tab-name-input {
+  background: #1e1e1e;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 13px;
+  padding: 2px 6px;
+  width: 80px;
+  max-width: 80px;
+  outline: none;
+  height: 22px;
+}
+
+.tab-name-input:focus {
+  border-color: #007acc;
+  box-shadow: 0 0 0 1px #007acc;
 } 
