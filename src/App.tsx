@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Tabs from './components/Tabs';
 import { Terminal } from "./components/Terminal/Terminal";
 import "./App.css"
+import { setupShortcuts } from './utils/shortcuts'
 
 interface TerminalInstance {
   id: string;
@@ -33,6 +34,11 @@ function App() {
       return newTerminals;
     });
   };
+
+  useEffect(() => {
+    const cleanup = setupShortcuts()
+    return cleanup
+  }, [])
 
   return (
     <div className="app">

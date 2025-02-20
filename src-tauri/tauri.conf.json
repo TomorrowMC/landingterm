@@ -4,7 +4,7 @@
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
     "devPath": "http://localhost:1420",
-    "distDir": "../dist"
+    "distDir": "../src"
   },
   "package": {
     "productName": "Landing Terminal",
@@ -21,6 +21,7 @@
       },
       "window": {
         "close": true,
+        "create": true,
         "startDragging": true
       }
     },
@@ -48,6 +49,7 @@
     },
     "windows": [
       {
+        "label": "main",
         "fullscreen": false,
         "height": 600,
         "width": 800,
