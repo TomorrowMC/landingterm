@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { IconX, IconPlus, IconCopy, IconPlayerPlay } from '@tabler/icons-react';
+import { IconX, IconPlus, IconCopy, IconPlayerPlay, IconSearch } from '@tabler/icons-react';
 import useFavoriteStore from '../../store/favoriteStore';
 import type { FavoriteCommand } from '../../store/favoriteStore';
 
@@ -17,6 +17,7 @@ export const FavoriteCommands: React.FC<FavoriteCommandsProps> = ({
   const [newCommandText, setNewCommandText] = useState('');
   const [expandedCommands, setExpandedCommands] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const init = async () => {
@@ -67,6 +68,13 @@ export const FavoriteCommands: React.FC<FavoriteCommandsProps> = ({
     });
   };
 
+  // 过滤命令的函数
+  const filteredCommands = commands.filter(cmd => {
+    const query = searchQuery.toLowerCase();
+    return cmd.name.toLowerCase().includes(query) || 
+           cmd.command.toLowerCase().includes(query);
+  });
+
   if (!isOpen) return null;
 
   return (
@@ -79,6 +87,19 @@ export const FavoriteCommands: React.FC<FavoriteCommandsProps> = ({
       </div>
 
       <div className="favorite-commands-content">
+        <div className="search-section">
+          <div className="search-input-wrapper">
+            <IconSearch size={16} className="search-icon" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search commands..."
+              className="search-input"
+            />
+          </div>
+        </div>
+
         <div className="add-command-section">
           <textarea
             value={newCommandName}
@@ -142,7 +163,7 @@ export const FavoriteCommands: React.FC<FavoriteCommandsProps> = ({
         </div>
 
         <div className="commands-list">
-          {commands.map((cmd) => (
+          {filteredCommands.map((cmd) => (
             <div key={cmd.id} className="command-item">
               <div 
                 className="command-content"

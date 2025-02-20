@@ -188,6 +188,24 @@
     @apply flex-1 overflow-y-auto p-4 flex flex-col gap-4;
   }
 
+  .search-section {
+    @apply mb-2;
+  }
+
+  .search-input-wrapper {
+    @apply relative flex items-center;
+  }
+
+  .search-icon {
+    @apply absolute left-3 text-terminal-600;
+  }
+
+  .search-input {
+    @apply w-full bg-terminal border border-terminal-300 rounded-md pl-9 pr-3 py-2
+           text-white placeholder-terminal-600 text-sm
+           focus:border-accent-blue focus:outline-none transition-colors duration-200;
+  }
+
   .add-command-section {
     @apply flex flex-col gap-2 mb-2;
   }
