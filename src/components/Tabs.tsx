@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { appWindow } from '@tauri-apps/api/window';
+import { Menu } from '@tauri-apps/api';
 import '../styles/tabs.css';
 
 interface Tab {
@@ -22,6 +23,17 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
   const [tabCounter, setTabCounter] = useState(2);
   const [editingTab, setEditingTab] = useState<string | null>(null);
   const [usedNames, setUsedNames] = useState<Set<string>>(new Set(['Term1']));
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    tabId: string;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    tabId: ''
+  });
 
   const getNextAvailableName = () => {
     let counter = 1;
@@ -82,6 +94,51 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
     
     setTabs(newTabs);
     onCloseTab(tabId);
+  };
+
+  const closeOtherTabs = (currentTabId: string) => {
+    if (tabs.length <= 1) return;
+
+    const currentTab = tabs.find(tab => tab.id === currentTabId);
+    if (!currentTab) return;
+
+    // 保存当前标签页的名称
+    const currentTabName = currentTab.name;
+
+    // 获取要关闭的标签页
+    const tabsToClose = tabs.filter(tab => tab.id !== currentTabId);
+
+    // 更新已使用的名称集合
+    setUsedNames(new Set([currentTabName]));
+
+    // 关闭其他标签页
+    tabsToClose.forEach(tab => {
+      onCloseTab(tab.id);
+    });
+
+    // 更新标签页列表，只保留当前标签页
+    setTabs([{ ...currentTab, active: true }]);
+    onTabChange(currentTabId);
+  };
+
+  // 添加点击外部关闭菜单的处理
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setContextMenu(prev => ({ ...prev, visible: false }));
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const handleContextMenu = (e: React.MouseEvent, tab: Tab) => {
+    e.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      tabId: tab.id
+    });
   };
 
   const handleDoubleClick = (tabId: string) => {
@@ -177,6 +234,7 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
             className={`tab ${tab.active ? 'active' : ''}`}
             onClick={() => switchTab(tab.id)}
             onDoubleClick={() => handleDoubleClick(tab.id)}
+            onContextMenu={(e) => handleContextMenu(e, tab)}
             title={`${tab.name} (⌘T to create, ⌘W to close, Ctrl+Tab to switch)`}
           >
             {editingTab === tab.id ? (
@@ -209,6 +267,40 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
           +
         </button>
       </div>
+      {contextMenu.visible && (
+        <div 
+          className="context-menu"
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div 
+            className="context-menu-item"
+            onClick={(e) => {
+              closeTab(contextMenu.tabId, e);
+              setContextMenu(prev => ({ ...prev, visible: false }));
+            }}
+          >
+            Close Tab
+          </div>
+          <div 
+            className="context-menu-item"
+            onClick={() => {
+              closeOtherTabs(contextMenu.tabId);
+              setContextMenu(prev => ({ ...prev, visible: false }));
+            }}
+            style={{ 
+              opacity: tabs.length > 1 ? 1 : 0.5,
+              cursor: tabs.length > 1 ? 'pointer' : 'not-allowed'
+            }}
+          >
+            Close Other Tabs
+          </div>
+        </div>
+      )}
     </div>
   );
 };
