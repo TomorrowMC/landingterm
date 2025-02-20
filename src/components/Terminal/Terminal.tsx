@@ -386,6 +386,20 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     inputRef.current?.focus();
   };
 
+  // Add useEffect for Esc key handling
+  useEffect(() => {
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFavoritesOpen) {
+        setIsFavoritesOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [isFavoritesOpen]);
+
   return (
     <div className="terminal-wrapper">
       <div className={`terminal-main-content ${isFavoritesOpen ? 'with-panel' : ''}`}>
@@ -430,11 +444,11 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
             </div>
             <div className="terminal-input-tools">
               <button
-                className="terminal-icon-button"
-                onClick={() => setIsFavoritesOpen(true)}
-                title="Favorite Commands"
+                className={`terminal-icon-button ${isFavoritesOpen ? 'active' : ''}`}
+                onClick={() => setIsFavoritesOpen(!isFavoritesOpen)}
+                title={isFavoritesOpen ? "Close Favorite Commands" : "Open Favorite Commands"}
               >
-                <IconStar size={18} />
+                <IconStar size={16} />
               </button>
             </div>
           </div>
