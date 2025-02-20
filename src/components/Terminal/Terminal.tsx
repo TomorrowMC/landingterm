@@ -226,12 +226,6 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   }, [id]);
 
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (!isSelecting && !window.getSelection()?.toString()) {
-        inputRef.current?.focus();
-      }
-    };
-    
     const handleMouseDown = () => {
       setIsSelecting(true);
     };
@@ -241,15 +235,48 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
         setIsSelecting(false);
       }, 0);
     };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 如果用户正在选择文本，不要自动聚焦
+      if (isSelecting) return;
+      
+      // 如果用户按下的是功能键或组合键，不要自动聚焦
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      
+      // 忽略一些特殊键
+      const ignoredKeys = [
+        'Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 
+        'Escape', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+        'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'
+      ];
+      
+      if (ignoredKeys.includes(e.key)) return;
+
+      // 如果当前焦点是在可编辑元素上，不要改变焦点
+      const activeElement = document.activeElement;
+      if (
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        (activeElement instanceof HTMLElement && activeElement.isContentEditable)
+      ) {
+        if (activeElement !== inputRef.current) return;
+      }
+
+      // 聚焦到输入框
+      inputRef.current?.focus();
+    };
     
-    document.addEventListener('click', handleClick);
     document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // 确保组件挂载时输入框获得焦点
+    inputRef.current?.focus();
     
     return () => {
-      document.removeEventListener('click', handleClick);
       document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isSelecting]);
 
