@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { writeText } from '@tauri-apps/api/clipboard';
 import './styles.css';
 import { IconChevronDown } from '@tabler/icons-react';
 
@@ -28,21 +29,147 @@ interface StreamOutput {
   should_replace_last: boolean;
 }
 
-const CommandBlockComponent: React.FC<CommandBlock> = ({ command, output, directory }) => (
-  <div className="command-block">
-    <div className="command-input">
-      <span className="prompt">{directory} $ </span>
-      <span className="command-text">{command}</span>
-    </div>
-    {output.length > 0 && (
-      <div className="command-output">
-        {output.map((line, index) => (
-          <div key={index} className="output-line">{line}</div>
-        ))}
+interface ContextMenuPosition {
+  x: number;
+  y: number;
+}
+
+const ContextMenu: React.FC<{
+  position: ContextMenuPosition;
+  onClose: () => void;
+  onCopy: () => void;
+  status: string;
+}> = ({ position, onClose, onCopy, status }) => {
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      e.preventDefault();
+      onClose();
+    };
+    
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [onClose]);
+
+  return (
+    <div 
+      className="terminal-context-menu"
+      style={{ 
+        left: position.x,
+        top: position.y
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div 
+        className="terminal-context-menu-item"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onCopy();
+        }}
+      >
+        Copy {status && <span className="copy-status">{status}</span>}
       </div>
-    )}
-  </div>
-);
+    </div>
+  );
+};
+
+const CommandBlockComponent: React.FC<CommandBlock> = ({ command, output, directory }) => {
+  const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
+  const [copyStatus, setCopyStatus] = useState<string>('');
+  const [selectedText, setSelectedText] = useState<string>('');
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const selection = window.getSelection();
+    const text = selection?.toString() || '';
+    if (text) {
+      setSelectedText(text);
+      setContextMenu({ x: e.clientX, y: e.clientY });
+      setCopyStatus('');
+      console.log('Selected text:', text); // Debug log
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    const selection = window.getSelection();
+    const text = selection?.toString() || '';
+    if (text) {
+      setSelectedText(text);
+      console.log('Updated selected text:', text); // Debug log
+    }
+  };
+
+  const handleCopy = async () => {
+    try {
+      if (!selectedText) {
+        console.error('No text selected');
+        return;
+      }
+
+      console.log('Copying text:', selectedText); // Debug log
+      await writeText(selectedText);
+      console.log('Text copied successfully');
+      
+      setCopyStatus('Copied!');
+      
+      setTimeout(() => {
+        setCopyStatus('');
+      }, 3000);
+
+    } catch (error) {
+      console.error('Failed to copy text:', error);
+      setCopyStatus('Copy failed');
+    } finally {
+      setTimeout(() => {
+        setContextMenu(null);
+      }, 500);
+    }
+  };
+
+  return (
+    <div 
+      className="command-block" 
+      onContextMenu={handleContextMenu}
+      onMouseUp={handleMouseUp}
+      onMouseDown={(e) => {
+        if (e.button === 2) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
+    >
+      <div className="command-input">
+        <span className="prompt">{directory} $ </span>
+        <span className="command-text">{command}</span>
+      </div>
+      {output.length > 0 && (
+        <div className="command-output">
+          {output.map((line, index) => (
+            <div 
+              key={index} 
+              className="output-line"
+              onMouseUp={handleMouseUp}
+            >
+              {line}
+            </div>
+          ))}
+        </div>
+      )}
+      {contextMenu && (
+        <ContextMenu
+          position={contextMenu}
+          onClose={() => {
+            setContextMenu(null);
+            setSelectedText('');
+          }}
+          onCopy={handleCopy}
+          status={copyStatus}
+        />
+      )}
+    </div>
+  );
+};
 
 export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -57,6 +184,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   const [isExecuting, setIsExecuting] = useState(false);
   const lastOutputRef = useRef<string>('');
   const [currentCommandBlock, setCurrentCommandBlock] = useState<CommandBlock | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
 
   // 简化的滚动到底部函数
   const scrollToBottom = (delay: number = 0) => {
@@ -110,15 +238,36 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     };
   }, [id]);
 
-  // 确保终端始终获得焦点
+  // 修改确保终端获得焦点的处理器
   useEffect(() => {
-    const handleClick = () => {
-      inputRef.current?.focus();
+    const handleClick = (e: MouseEvent) => {
+      // 如果用户正在选择文本，不要重新聚焦到输入框
+      if (!isSelecting && !window.getSelection()?.toString()) {
+        inputRef.current?.focus();
+      }
+    };
+    
+    const handleMouseDown = () => {
+      setIsSelecting(true);
+    };
+
+    const handleMouseUp = () => {
+      // 延迟重置选择状态，以确保上下文菜单可以正确显示
+      setTimeout(() => {
+        setIsSelecting(false);
+      }, 0);
     };
     
     document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, []);
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isSelecting]);
 
   useEffect(() => {
     const setupListeners = async () => {

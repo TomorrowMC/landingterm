@@ -23,6 +23,11 @@
         "close": true,
         "create": true,
         "startDragging": true
+      },
+      "clipboard": {
+        "all": true,
+        "writeText": true,
+        "readText": true
       }
     },
     "bundle": {
