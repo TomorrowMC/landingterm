@@ -80,29 +80,57 @@ export const FavoriteCommands: React.FC<FavoriteCommandsProps> = ({
 
       <div className="favorite-commands-content">
         <div className="add-command-section">
-          <input
-            type="text"
+          <textarea
             value={newCommandName}
             onChange={(e) => setNewCommandName(e.target.value)}
             placeholder="Command name"
-            className="command-input"
+            className="command-input name-input"
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck="false"
             autoComplete="off"
-            inputMode="text"
+            rows={1}
           />
-          <input
-            type="text"
+          <textarea
             value={newCommandText}
-            onChange={(e) => setNewCommandText(e.target.value)}
+            onChange={(e) => {
+              setNewCommandText(e.target.value);
+              // 自动调整高度
+              const textarea = e.target;
+              textarea.style.height = '0px'; // 重置高度以获取正确的 scrollHeight
+              const minHeight = 32; // 最小高度
+              const maxHeight = 150; // 最大高度
+              const scrollHeight = Math.max(textarea.scrollHeight, minHeight);
+              
+              if (scrollHeight > maxHeight) {
+                textarea.style.height = `${maxHeight}px`;
+                textarea.style.overflowY = 'auto';
+              } else {
+                textarea.style.height = `${scrollHeight}px`;
+                textarea.style.overflowY = 'hidden';
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault();
+                const cursorPosition = e.currentTarget.selectionStart;
+                const textBeforeCursor = newCommandText.slice(0, cursorPosition);
+                const textAfterCursor = newCommandText.slice(cursorPosition);
+                setNewCommandText(textBeforeCursor + '\n' + textAfterCursor);
+                // 在下一个事件循环中设置光标位置
+                setTimeout(() => {
+                  e.currentTarget.selectionStart = cursorPosition + 1;
+                  e.currentTarget.selectionEnd = cursorPosition + 1;
+                }, 0);
+              }
+            }}
             placeholder="Command"
-            className="command-input"
+            className="command-input command-text-input"
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck="false"
             autoComplete="off"
-            inputMode="text"
+            rows={1}
           />
           <button
             onClick={handleAddCommand}

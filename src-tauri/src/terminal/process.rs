@@ -580,7 +580,7 @@ pub async fn stop_command<R: Runtime>(
         
         // 发送用户停止的消息
         let _ = window.emit("terminal-output", StreamOutput {
-            content: "用户已停止命令".to_string(),
+            content: "User has stopped the command".to_string(),
             output_type: "stderr".to_string(),
             current_dir: current_dir_str,
             should_replace_last: false,
