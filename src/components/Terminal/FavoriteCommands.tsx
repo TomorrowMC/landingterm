@@ -1,52 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { Store } from 'tauri-plugin-store-api';
-import { IconX, IconPlus } from '@tabler/icons-react';
-
-interface FavoriteCommand {
-  id: string;
-  name: string;
-  command: string;
-}
+import { IconX, IconPlus, IconCopy, IconPlayerPlay } from '@tabler/icons-react';
+import useFavoriteStore from '../../store/favoriteStore';
+import type { FavoriteCommand } from '../../store/favoriteStore';
 
 interface FavoriteCommandsProps {
-  isOpen: boolean;
-  onClose: () => void;
   onSelectCommand: (command: string) => void;
+  onRunCommand?: (command: string) => void;
 }
 
 export const FavoriteCommands: React.FC<FavoriteCommandsProps> = ({
-  isOpen,
-  onClose,
   onSelectCommand,
+  onRunCommand,
 }) => {
-  const [commands, setCommands] = useState<FavoriteCommand[]>([]);
+  const { isOpen, commands, setIsOpen, addCommand, deleteCommand, initStore } = useFavoriteStore();
   const [newCommandName, setNewCommandName] = useState('');
   const [newCommandText, setNewCommandText] = useState('');
-  const store = new Store('.settings.dat');
+  const [expandedCommands, setExpandedCommands] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadCommands();
-  }, []);
-
-  const loadCommands = async () => {
-    try {
-      const savedCommands = await store.get<FavoriteCommand[]>('favorite_commands');
-      if (savedCommands) {
-        setCommands(savedCommands);
+    const init = async () => {
+      try {
+        await initStore();
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error initializing store:', error);
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading commands:', error);
-    }
-  };
+    };
 
-  const saveCommands = async (newCommands: FavoriteCommand[]) => {
-    try {
-      await store.set('favorite_commands', newCommands);
-      await store.save();
-    } catch (error) {
-      console.error('Error saving commands:', error);
-    }
-  };
+    init();
+  }, [initStore]);
 
   const handleAddCommand = async () => {
     if (!newCommandName.trim() || !newCommandText.trim()) return;
@@ -57,17 +41,30 @@ export const FavoriteCommands: React.FC<FavoriteCommandsProps> = ({
       command: newCommandText.trim(),
     };
 
-    const updatedCommands = [...commands, newCommand];
-    setCommands(updatedCommands);
-    await saveCommands(updatedCommands);
+    await addCommand(newCommand);
     setNewCommandName('');
     setNewCommandText('');
   };
 
   const handleDeleteCommand = async (id: string) => {
-    const updatedCommands = commands.filter(cmd => cmd.id !== id);
-    setCommands(updatedCommands);
-    await saveCommands(updatedCommands);
+    await deleteCommand(id);
+    setExpandedCommands(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleCommandExpand = (id: string) => {
+    setExpandedCommands(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   if (!isOpen) return null;
@@ -76,7 +73,7 @@ export const FavoriteCommands: React.FC<FavoriteCommandsProps> = ({
     <div className="favorite-commands-panel">
       <div className="favorite-commands-header">
         <h3>Favorite Commands</h3>
-        <button onClick={onClose} className="close-button">
+        <button onClick={() => setIsOpen(false).catch(console.error)} className="close-button">
           <IconX size={20} />
         </button>
       </div>
@@ -89,6 +86,11 @@ export const FavoriteCommands: React.FC<FavoriteCommandsProps> = ({
             onChange={(e) => setNewCommandName(e.target.value)}
             placeholder="Command name"
             className="command-input"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
+            autoComplete="off"
+            inputMode="text"
           />
           <input
             type="text"
@@ -96,6 +98,11 @@ export const FavoriteCommands: React.FC<FavoriteCommandsProps> = ({
             onChange={(e) => setNewCommandText(e.target.value)}
             placeholder="Command"
             className="command-input"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
+            autoComplete="off"
+            inputMode="text"
           />
           <button
             onClick={handleAddCommand}
@@ -111,17 +118,38 @@ export const FavoriteCommands: React.FC<FavoriteCommandsProps> = ({
             <div key={cmd.id} className="command-item">
               <div 
                 className="command-content"
-                onClick={() => onSelectCommand(cmd.command)}
+                onClick={() => toggleCommandExpand(cmd.id)}
               >
                 <span className="command-name">{cmd.name}</span>
-                <span className="command-text">{cmd.command}</span>
+                <span className={`command-text ${expandedCommands.has(cmd.id) ? 'expanded' : 'collapsed'}`}>
+                  {cmd.command}
+                </span>
               </div>
-              <button
-                onClick={() => handleDeleteCommand(cmd.id)}
-                className="delete-button"
-              >
-                <IconX size={16} />
-              </button>
+              <div className="command-actions">
+                <button
+                  className="action-button paste"
+                  onClick={() => onSelectCommand(cmd.command)}
+                  title="Paste command"
+                >
+                  <IconCopy size={16} />
+                </button>
+                {onRunCommand && (
+                  <button
+                    className="action-button run"
+                    onClick={() => onRunCommand(cmd.command)}
+                    title="Run command"
+                  >
+                    <IconPlayerPlay size={16} />
+                  </button>
+                )}
+                <button
+                  className="action-button delete"
+                  onClick={() => handleDeleteCommand(cmd.id)}
+                  title="Delete command"
+                >
+                  <IconX size={16} />
+                </button>
+              </div>
             </div>
           ))}
         </div>

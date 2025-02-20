@@ -7,6 +7,7 @@ import { IconChevronDown, IconStar } from '@tabler/icons-react';
 import { CommandBlock } from './CommandBlock';
 import { FavoriteCommands } from './FavoriteCommands';
 import { TerminalProps, CommandBlock as CommandBlockType, StreamOutput, ContextMenuPosition } from './types';
+import useFavoriteStore from '../../store/favoriteStore';
 
 interface CommandResult {
   stdout: string;
@@ -178,7 +179,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [currentCommandBlock, setCurrentCommandBlock] = useState<CommandBlockType | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
-  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
+  const { isOpen, setIsOpen } = useFavoriteStore();
 
   const scrollToBottom = (delay: number = 0) => {
     setTimeout(() => {
@@ -382,15 +383,52 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
 
   const handleSelectFavoriteCommand = (command: string) => {
     setInput(command);
-    setIsFavoritesOpen(false);
     inputRef.current?.focus();
   };
 
-  // Add useEffect for Esc key handling
+  const handleRunFavoriteCommand = async (command: string) => {
+    if (isExecuting) return; // 防止命令重复执行
+    
+    try {
+      setIsExecuting(true);
+      setAutoScroll(true);
+      scrollToBottom(0);
+
+      const newBlock: CommandBlockType = {
+        id: blockId,
+        command: command,
+        output: [],
+        directory: currentDir
+      };
+      
+      setCommandBlocks(prev => [...prev, newBlock]);
+      setCurrentCommandBlock(newBlock);
+      setBlockId(prev => prev + 1);
+
+      await invoke('execute_command_stream', { 
+        command,
+        terminalId: id
+      });
+    } catch (error) {
+      const errorBlock: CommandBlockType = {
+        id: blockId,
+        command: command,
+        output: [`Error: ${error}`],
+        directory: currentDir
+      };
+      setCommandBlocks(prev => [...prev, errorBlock]);
+      setBlockId(prev => prev + 1);
+      setIsExecuting(false);
+      setCurrentCommandBlock(null);
+      scrollToBottom(50);
+    }
+  };
+
+  // 修改 ESC 键处理
   useEffect(() => {
     const handleEscKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isFavoritesOpen) {
-        setIsFavoritesOpen(false);
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false).catch(console.error);
       }
     };
 
@@ -398,11 +436,11 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     return () => {
       document.removeEventListener('keydown', handleEscKey);
     };
-  }, [isFavoritesOpen]);
+  }, [isOpen, setIsOpen]);
 
   return (
     <div className="terminal-wrapper">
-      <div className={`terminal-main-content ${isFavoritesOpen ? 'with-panel' : ''}`}>
+      <div className={`terminal-main-content ${isOpen ? 'with-panel' : ''}`}>
         <div className="terminal-scroll-container" ref={terminalRef}>
           <div className="terminal-content">
             <div className="terminal-blocks">
@@ -414,7 +452,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
         </div>
         {!autoScroll && (
           <button 
-            className={`scroll-to-bottom ${!autoScroll ? 'visible' : ''} ${isFavoritesOpen ? 'with-panel' : ''}`}
+            className={`scroll-to-bottom ${!autoScroll ? 'visible' : ''} ${isOpen ? 'with-panel' : ''}`}
             onClick={() => {
               setAutoScroll(true);
               scrollToBottom();
@@ -424,7 +462,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
             <IconChevronDown size={16} />
           </button>
         )}
-        <div className={`terminal-input-container ${isFavoritesOpen ? 'with-panel' : ''}`}>
+        <div className={`terminal-input-container ${isOpen ? 'with-panel' : ''}`}>
           <div className="terminal-input-line">
             <div className="terminal-input-main">
               <span className="prompt">{currentDir} $ </span>
@@ -444,9 +482,9 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
             </div>
             <div className="terminal-input-tools">
               <button
-                className={`terminal-icon-button ${isFavoritesOpen ? 'active' : ''}`}
-                onClick={() => setIsFavoritesOpen(!isFavoritesOpen)}
-                title={isFavoritesOpen ? "Close Favorite Commands" : "Open Favorite Commands"}
+                className={`terminal-icon-button ${isOpen ? 'active' : ''}`}
+                onClick={() => setIsOpen(!isOpen).catch(console.error)}
+                title={isOpen ? "Close Favorite Commands" : "Open Favorite Commands"}
               >
                 <IconStar size={16} />
               </button>
@@ -455,9 +493,8 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
         </div>
       </div>
       <FavoriteCommands
-        isOpen={isFavoritesOpen}
-        onClose={() => setIsFavoritesOpen(false)}
         onSelectCommand={handleSelectFavoriteCommand}
+        onRunCommand={handleRunFavoriteCommand}
       />
     </div>
   );

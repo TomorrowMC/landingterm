@@ -160,11 +160,12 @@
   }
 
   .favorite-commands-header {
-    @apply flex justify-between items-center p-4 border-b border-terminal-300;
+    @apply flex justify-between items-center px-4 py-3 border-b border-terminal-300
+           bg-terminal-200/50;
   }
 
   .favorite-commands-header h3 {
-    @apply text-lg font-medium text-white m-0;
+    @apply text-base font-medium text-white m-0;
   }
 
   .close-button {
@@ -177,12 +178,13 @@
   }
 
   .add-command-section {
-    @apply flex flex-col gap-2;
+    @apply flex flex-col gap-2 mb-2;
   }
 
   .add-button {
     @apply bg-accent-blue text-white rounded-md px-3 py-2 flex items-center justify-center
-           hover:bg-accent-blue/90 disabled:opacity-50 disabled:cursor-not-allowed;
+           hover:bg-accent-blue/90 disabled:opacity-50 disabled:cursor-not-allowed
+           transition-all duration-200 hover:shadow-lg active:transform active:scale-[0.98];
   }
 
   .commands-list {
@@ -190,23 +192,57 @@
   }
 
   .command-item {
-    @apply flex items-center gap-2 bg-terminal-200 rounded-md p-2;
-  }
-
-  .command-item:hover .delete-button {
-    @apply opacity-100;
+    @apply flex items-center gap-2 bg-terminal-200 rounded-md p-2
+           hover:bg-terminal-300/50 transition-all duration-200 relative;
   }
 
   .command-content {
-    @apply flex-1 cursor-pointer hover:bg-terminal-300 rounded p-2;
+    @apply flex-1 cursor-pointer rounded p-2 flex flex-col gap-0.5 min-w-0;
   }
 
   .command-name {
-    @apply block text-sm font-medium text-white mb-1;
+    @apply block text-xs font-medium text-terminal-600 mb-0.5;
+  }
+
+  .command-text {
+    @apply text-sm text-white font-mono transition-all duration-200
+           overflow-hidden;
+  }
+
+  .command-text.collapsed {
+    @apply line-clamp-2;
+  }
+
+  .command-text.expanded {
+    @apply line-clamp-none;
+  }
+
+  .command-actions {
+    @apply flex items-center gap-1;
+  }
+
+  .action-button {
+    @apply p-1.5 rounded-md transition-all duration-200
+           text-terminal-600 hover:text-white
+           bg-terminal-300/30 hover:bg-terminal-300
+           flex items-center justify-center;
+  }
+
+  .action-button.paste {
+    @apply hover:text-accent-blue;
+  }
+
+  .action-button.run {
+    @apply hover:text-accent-green;
   }
 
   .delete-button {
     @apply p-1 rounded-md hover:bg-terminal-300 transition-colors duration-200
-           text-terminal-600 hover:text-accent-red opacity-0;
+           text-terminal-600 hover:text-accent-red opacity-0
+           hover:bg-terminal-400/50;
+  }
+
+  .command-item:hover .delete-button {
+    @apply opacity-100;
   }
 } 

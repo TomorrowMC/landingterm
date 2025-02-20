@@ -14,6 +14,35 @@
   code {
     @apply font-mono;
   }
+
+  /* Disable auto-correction and IME features globally */
+  input, textarea {
+    @apply font-mono;
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    ime-mode: disabled;
+    -webkit-ime-mode: disabled;
+  }
+
+  input[type="text"], textarea {
+    @apply font-mono;
+    -webkit-appearance: none;
+    appearance: none;
+    ime-mode: disabled;
+    -webkit-ime-mode: disabled;
+  }
+
+  /* Force disable auto features */
+  input, textarea {
+    text-transform: none !important;
+    autocorrect: off !important;
+    -webkit-text-transform: none !important;
+    -webkit-autocorrect: off !important;
+    autocapitalize: off !important;
+    -webkit-autocapitalize: off !important;
+    spellcheck: false !important;
+    -webkit-spellcheck: false !important;
+  }
 }
 
 @layer components {
