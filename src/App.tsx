@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import Tabs from './components/Tabs';
 import { Terminal } from "./components/Terminal/Terminal";
-import "./App.css"
 import { setupShortcuts } from './utils/shortcuts'
 
 interface TerminalInstance {
@@ -51,7 +50,7 @@ function App() {
         {terminals.map(term => (
           <div 
             key={term.id}
-            style={{ display: term.active ? 'flex' : 'none', flex: 1 }}
+            className={`flex-1 ${term.active ? 'flex' : 'hidden'}`}
           >
             <Terminal id={term.id} />
           </div>

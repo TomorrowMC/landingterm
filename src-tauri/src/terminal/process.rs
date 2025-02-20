@@ -49,7 +49,7 @@ pub struct StreamOutput {
     pub output_type: String,
     pub current_dir: String,
     pub should_replace_last: bool,
-    pub terminal_id: String,
+    pub terminalId: String,
 }
 
 #[allow(dead_code)]
@@ -184,12 +184,12 @@ pub async fn close_terminal(id: String) -> Result<(), String> {
 pub async fn execute_command_stream<R: Runtime>(
     window: tauri::Window<R>,
     command: String,
-    terminal_id: String,
+    terminalId: String,
 ) -> Result<(), String> {
     let current_dir = CURRENT_DIR.lock().unwrap().clone();
     
     if command.trim().starts_with("cd") {
-        return handle_cd_command(&command, window, &terminal_id).await;
+        return handle_cd_command(&command, window, &terminalId).await;
     }
 
     // 检查命令是否是下载相关命令
@@ -232,7 +232,7 @@ pub async fn execute_command_stream<R: Runtime>(
 
     let window_clone = window.clone();
     let current_dir_str = format_current_dir(&current_dir);
-    let terminal_id_clone = terminal_id.clone();
+    let terminal_id_clone = terminalId.clone();
 
     // Handle stdout in a separate task
     let stdout_task = {
@@ -282,7 +282,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                     output_type: "stdout".to_string(),
                                                     current_dir: current_dir.clone(),
                                                     should_replace_last: false,
-                                                    terminal_id: terminal_id.clone(),
+                                                    terminalId: terminal_id.clone(),
                                                 });
                                             }
                                             
@@ -296,7 +296,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                     output_type: "stdout".to_string(),
                                                     current_dir: current_dir.clone(),
                                                     should_replace_last: true,
-                                                    terminal_id: terminal_id.clone(),
+                                                    terminalId: terminal_id.clone(),
                                                 });
                                             } else if !current_line.trim().is_empty() && 
                                                      !STATUS_RE.is_match(&current_line) {
@@ -306,7 +306,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                     output_type: "stdout".to_string(),
                                                     current_dir: current_dir.clone(),
                                                     should_replace_last: false,
-                                                    terminal_id: terminal_id.clone(),
+                                                    terminalId: terminal_id.clone(),
                                                 });
                                             }
                                         } else {
@@ -316,7 +316,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                 output_type: "stdout".to_string(),
                                                 current_dir: current_dir.clone(),
                                                 should_replace_last: false,
-                                                terminal_id: terminal_id.clone(),
+                                                terminalId: terminal_id.clone(),
                                             });
                                         }
                                     }
@@ -334,7 +334,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                 output_type: "stdout".to_string(),
                                 current_dir: current_dir.clone(),
                                 should_replace_last: false,
-                                terminal_id: terminal_id.clone(),
+                                terminalId: terminal_id.clone(),
                             });
                         }
                     }
@@ -344,7 +344,7 @@ pub async fn execute_command_stream<R: Runtime>(
                             output_type: "stderr".to_string(),
                             current_dir: current_dir.clone(),
                             should_replace_last: false,
-                            terminal_id: terminal_id.clone(),
+                            terminalId: terminal_id.clone(),
                         });
                         break;
                     }
@@ -387,7 +387,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                         output_type: "stderr".to_string(),
                                                         current_dir: current_dir.clone(),
                                                         should_replace_last: false,
-                                                        terminal_id: terminal_id.clone(),
+                                                        terminalId: terminal_id.clone(),
                                                     });
                                                 }
                                             } else if PROGRESS_RE.is_match(&current_line) {
@@ -397,7 +397,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                     output_type: "stderr".to_string(),
                                                     current_dir: current_dir.clone(),
                                                     should_replace_last: true,
-                                                    terminal_id: terminal_id.clone(),
+                                                    terminalId: terminal_id.clone(),
                                                 });
                                             } else if !current_line.trim().is_empty() {
                                                 let _ = window.emit("terminal-output", StreamOutput {
@@ -405,7 +405,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                     output_type: "stderr".to_string(),
                                                     current_dir: current_dir.clone(),
                                                     should_replace_last: false,
-                                                    terminal_id: terminal_id.clone(),
+                                                    terminalId: terminal_id.clone(),
                                                 });
                                             }
                                         } else {
@@ -414,7 +414,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                 output_type: "stderr".to_string(),
                                                 current_dir: current_dir.clone(),
                                                 should_replace_last: false,
-                                                terminal_id: terminal_id.clone(),
+                                                terminalId: terminal_id.clone(),
                                             });
                                         }
                                     }
@@ -431,7 +431,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                 output_type: "stderr".to_string(),
                                 current_dir: current_dir.clone(),
                                 should_replace_last: false,
-                                terminal_id: terminal_id.clone(),
+                                terminalId: terminal_id.clone(),
                             });
                         }
                     }
@@ -441,7 +441,7 @@ pub async fn execute_command_stream<R: Runtime>(
                             output_type: "stderr".to_string(),
                             current_dir: current_dir.clone(),
                             should_replace_last: false,
-                            terminal_id: terminal_id.clone(),
+                            terminalId: terminal_id.clone(),
                         });
                         break;
                     }
@@ -459,7 +459,7 @@ pub async fn execute_command_stream<R: Runtime>(
 
     // Emit command completion event with terminal ID
     let _ = window.emit("terminal-command-complete", serde_json::json!({
-        "terminal_id": terminal_id,
+        "terminalId": terminalId,
         "code": status.code()
     }));
 
@@ -505,7 +505,7 @@ async fn handle_cd_command<R: Runtime>(
             output_type: "stdout".to_string(),
             current_dir: current_dir_str,
             should_replace_last: false,
-            terminal_id: terminal_id.to_string(),
+            terminalId: terminal_id.to_string(),
         });
         Ok(())
     } else {
@@ -516,7 +516,7 @@ async fn handle_cd_command<R: Runtime>(
             output_type: "stderr".to_string(),
             current_dir: current_dir_str,
             should_replace_last: false,
-            terminal_id: terminal_id.to_string(),
+            terminalId: terminal_id.to_string(),
         });
         Ok(())
     }

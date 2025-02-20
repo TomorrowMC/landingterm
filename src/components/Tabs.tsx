@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { appWindow } from '@tauri-apps/api/window';
-import '../styles/tabs.css';
 
 interface Tab {
   id: string;
@@ -251,63 +250,58 @@ const Tabs: React.FC<TabsProps> = ({ onTabChange, onAddTab, onCloseTab }) => {
                 <span className="tab-name">{tab.name}</span>
               )}
             </div>
-            <button 
+            <button
               className="close-tab"
               onClick={(e) => closeTab(tab.id, e)}
-              title="Close terminal"
+              title="Close tab"
             >
               ×
             </button>
           </div>
         ))}
-        <button 
-          className="new-tab" 
+        <button
+          className="new-tab"
           onClick={addTab}
-          title="New terminal (⌘T)"
+          title="New tab (⌘T)"
         >
           +
         </button>
       </div>
       {contextMenu.visible && (
-        <div 
+        <div
           className="context-menu"
           style={{
             position: 'fixed',
-            top: contextMenu.y,
             left: contextMenu.x,
+            top: contextMenu.y,
           }}
-          onClick={(e) => e.stopPropagation()}
         >
-          <div 
+          <div
             className="context-menu-item"
             onClick={() => {
               handleDoubleClick(contextMenu.tabId);
               setContextMenu(prev => ({ ...prev, visible: false }));
             }}
           >
-            Rename Tab
+            Rename
           </div>
-          <div 
-            className="context-menu-item"
-            onClick={(e) => {
-              closeTab(contextMenu.tabId, e);
-              setContextMenu(prev => ({ ...prev, visible: false }));
-            }}
-          >
-            Close Tab
-          </div>
-          <div 
+          <div
             className="context-menu-item"
             onClick={() => {
               closeOtherTabs(contextMenu.tabId);
               setContextMenu(prev => ({ ...prev, visible: false }));
             }}
-            style={{ 
-              opacity: tabs.length > 1 ? 1 : 0.5,
-              cursor: tabs.length > 1 ? 'pointer' : 'not-allowed'
-            }}
           >
             Close Other Tabs
+          </div>
+          <div
+            className="context-menu-item"
+            onClick={(e) => {
+              closeTab(contextMenu.tabId, e as React.MouseEvent);
+              setContextMenu(prev => ({ ...prev, visible: false }));
+            }}
+          >
+            Close Tab
           </div>
         </div>
       )}

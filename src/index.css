@@ -1,28 +1,181 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    @apply w-full h-full overflow-hidden m-0 p-0 bg-zinc-900;
+  }
+
+  body {
+    @apply font-mono antialiased fixed w-full h-full;
+  }
+
+  code {
+    @apply font-mono;
+  }
 }
 
-html, body {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-  background-color: #1e1e1e;
-}
+@layer components {
+  #root {
+    @apply w-screen h-screen overflow-hidden bg-zinc-900;
+  }
 
-body {
-  font-family: Menlo, Monaco, 'Courier New', monospace;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  position: fixed;
-  width: 100%;
-  height: 100%;
-}
+  .container {
+    @apply w-full h-full overflow-hidden bg-zinc-900 flex flex-col;
+  }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  .logo {
+    @apply h-24 p-6 transition-all duration-700;
+  }
+
+  .logo.vite:hover {
+    @apply filter drop-shadow-[0_0_2em_#747bff];
+  }
+
+  .logo.react:hover {
+    @apply filter drop-shadow-[0_0_2em_#61dafb];
+  }
+
+  .logo.tauri:hover {
+    @apply filter drop-shadow-[0_0_2em_#24c8db];
+  }
+
+  .row {
+    @apply flex justify-center;
+  }
+
+  a {
+    @apply font-medium text-indigo-400 no-underline hover:text-indigo-500;
+  }
+
+  h1 {
+    @apply text-center;
+  }
+
+  input,
+  button {
+    @apply rounded-lg border border-transparent px-5 py-2.5 text-base font-medium 
+           bg-white text-zinc-900 shadow-sm transition-colors duration-200
+           dark:bg-zinc-900/60 dark:text-white focus:outline-none;
+  }
+
+  button {
+    @apply cursor-pointer hover:border-blue-600 active:border-blue-600 active:bg-gray-200
+           dark:active:bg-zinc-900/40;
+  }
+
+  #greet-input {
+    @apply mr-1.5;
+  }
+
+  .titlebar {
+    @apply bg-zinc-900 h-[30px] select-none flex justify-center items-center text-white text-sm;
+  }
+
+  .titlebar-button {
+    @apply inline-flex justify-center items-center w-[30px] h-[30px] text-white;
+  }
+
+  .app {
+    @apply h-screen flex flex-col bg-zinc-900 text-white;
+  }
+
+  .terminal-container {
+    @apply flex-1 overflow-hidden flex flex-col;
+  }
+
+  .terminals-container {
+    @apply flex-1 flex overflow-hidden;
+  }
+
+  .tabs-container {
+    @apply bg-terminal-100 px-2 pt-2 border-b border-terminal-300;
+  }
+
+  .tabs {
+    @apply flex gap-1 h-9 items-center;
+  }
+
+  .tab {
+    @apply h-8 bg-terminal-50 px-3 rounded-t-md flex items-center gap-2 cursor-pointer select-none
+           font-['SF_Pro_Text',-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif] text-sm
+           text-terminal-600 border border-transparent border-b-0 transition-all duration-200
+           min-w-[120px] justify-between relative animate-slide-in;
+  }
+
+  .tab:hover {
+    @apply bg-terminal-200 text-terminal-700;
+  }
+
+  .tab.active {
+    @apply bg-terminal text-white border-terminal-300 h-[33px] -mb-px;
+  }
+
+  .tab::after {
+    @apply content-[''] absolute bottom-0 left-0 right-0 h-0.5 bg-transparent transition-colors duration-200;
+  }
+
+  .tab:hover::after {
+    @apply bg-terminal-500;
+  }
+
+  .tab.active::after {
+    @apply bg-accent-blue;
+  }
+
+  .close-tab {
+    @apply bg-transparent border-none text-inherit cursor-pointer px-1.5 py-0.5 text-base rounded
+           flex items-center justify-center transition-all duration-200 opacity-60;
+  }
+
+  .tab:hover .close-tab {
+    @apply opacity-100;
+  }
+
+  .close-tab:hover {
+    @apply bg-white/10 text-accent-red;
+  }
+
+  .new-tab {
+    @apply bg-transparent border-none text-terminal-600 cursor-pointer w-8 h-8 text-xl rounded-md
+           flex items-center justify-center transition-all duration-200 ml-1;
+  }
+
+  .new-tab:hover {
+    @apply bg-terminal-200 text-white;
+  }
+
+  .context-menu {
+    @apply bg-terminal-50 border border-terminal-300 rounded-md shadow-lg min-w-[160px] z-[1000] overflow-hidden;
+  }
+
+  .context-menu-item {
+    @apply px-3 py-2 cursor-pointer text-terminal-700 text-sm transition-all duration-200 select-none;
+  }
+
+  .context-menu-item:hover {
+    @apply bg-terminal-300 text-white;
+  }
+
+  .context-menu-item:active {
+    @apply bg-terminal-400;
+  }
+
+  .context-menu-item + .context-menu-item {
+    @apply border-t border-terminal-300;
+  }
+
+  .tab-content {
+    @apply flex-1 min-w-0 flex items-center;
+  }
+
+  .tab-name {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap flex-1;
+  }
+
+  .tab-name-input {
+    @apply bg-terminal border border-terminal-300 rounded text-white text-sm px-1.5 py-0.5
+           w-20 max-w-[80px] outline-none h-[22px] focus:border-accent-blue focus:shadow-[0_0_0_1px_#007acc];
+  }
 } 

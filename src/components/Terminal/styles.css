@@ -1,232 +1,113 @@
-.terminal-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: #1e1e1e;
-  color: #fff;
-  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-  padding: 16px;
-  overflow: hidden;
-  position: relative;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-.terminal-scroll-container {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  position: relative;
-  padding-bottom: 16px;
-  margin-bottom: 60px;
-  
-  /* 自定义滚动条样式 */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-}
-
-.terminal-scroll-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.terminal-scroll-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.terminal-scroll-container::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.terminal-scroll-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.terminal-content {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-}
-
-.terminal-blocks {
-  flex: 1;
-}
-
-.terminal-input-container {
-  position: absolute;
-  bottom: 16px;
-  left: 16px;
-  right: 16px;
-  background: #1e1e1e;
-  z-index: 10;
-}
-
-.terminal-input-line {
-  margin-top: 8px;
-  background-color: #2a2a2a;
-  border-radius: 8px;
-  padding: 8px 12px;
-  display: flex;
-  align-items: center;
-  border: 1px solid #3a3a3a;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(8px);
-}
-
-.prompt {
-  color: #6aa84f;
-  padding-right: 8px;
-  user-select: none;
-  white-space: nowrap;
-}
-
-.terminal-input {
-  flex: 1;
-  background: none;
-  border: none;
-  color: #fff;
-  font-family: inherit;
-  font-size: inherit;
-  padding: 4px;
-  margin: 0;
-  outline: none;
-}
-
-.command-block {
-  margin: 8px 0;
-  background-color: #2a2a2a;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #3a3a3a;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  animation: fadeIn 0.2s ease-in-out;
-}
-
-.command-input {
-  padding: 8px 12px;
-  background-color: #333333;
-  border-bottom: 1px solid #3a3a3a;
-  display: flex;
-  align-items: center;
-}
-
-.command-text {
-  color: #fff;
-  font-weight: 500;
-  word-break: break-all;
-}
-
-.command-output {
-  padding: 8px 12px;
-  background-color: #2a2a2a;
-}
-
-.output-line {
-  padding: 2px 0;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  user-select: text;
-}
-
-.terminal-error {
-  color: #ff6b6b;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
+@layer components {
+  .terminal-wrapper {
+    @apply flex-1 flex flex-col bg-terminal text-white font-terminal p-4 overflow-hidden relative;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .terminal-scroll-container {
+    @apply flex-1 overflow-y-auto overflow-x-hidden relative pb-4 mb-[60px]
+           scrollbar scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20 
+           hover:scrollbar-thumb-white/30;
   }
-}
 
-.scroll-to-bottom {
-  position: fixed;
-  right: 48px;  /* 增加右侧距离 */
-  bottom: 100px;
-  background: rgba(60, 60, 60, 0.8);  /* 半透明灰色 */
-  border: none;
-  border-radius: 8px;  /* 改为圆角矩形 */
-  width: 40px;  /* 稍微调整宽度 */
-  height: 32px;  /* 降低高度使其更像矩形 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  opacity: 0;
-  transform: translateY(20px);
-  z-index: 1000;
-  padding: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);  /* 添加阴影 */
-  font-size: 14px;  /* 调整箭头大小 */
-}
+  .terminal-content {
+    @apply flex flex-col min-h-full;
+  }
 
-.scroll-to-bottom.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
+  .terminal-blocks {
+    @apply flex-1;
+  }
 
-.scroll-to-bottom:hover {
-  background: rgba(70, 70, 70, 0.9);  /* 悬停时稍微不透明 */
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);  /* 悬停时阴影更明显 */
-}
+  .terminal-input-container {
+    @apply absolute bottom-4 left-4 right-4 bg-terminal z-10;
+  }
 
-.scroll-to-bottom:active {
-  transform: translateY(0);
-  background: rgba(50, 50, 50, 0.85);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
+  .terminal-input-line {
+    @apply mt-2 bg-terminal-input rounded-lg p-3 flex items-center border border-terminal-300
+           shadow-lg backdrop-blur-md;
+  }
 
-.scroll-to-bottom-icon {
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
-  opacity: 0.8;
-}
+  .prompt {
+    @apply text-accent-green pr-2 select-none whitespace-nowrap;
+  }
 
-.scroll-to-bottom:hover .scroll-to-bottom-icon {
-  opacity: 1;
-}
+  .terminal-input {
+    @apply flex-1 bg-transparent border-none text-white font-terminal p-1 m-0 outline-none;
+  }
 
-.terminal-context-menu {
-  position: fixed;
-  background: #2d2d2d;
-  border: 1px solid #3a3a3a;
-  border-radius: 6px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  min-width: 160px;
-  z-index: 1000;
-  overflow: hidden;
-}
+  .command-block {
+    @apply my-2 bg-terminal-input rounded-lg overflow-hidden border border-terminal-300
+           shadow-sm animate-fade-in;
+  }
 
-.terminal-context-menu-item {
-  padding: 8px 12px;
-  cursor: pointer;
-  color: #bbb;
-  font-size: 13px;
-  transition: all 0.2s ease;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: space-between;
-}
+  .command-input {
+    @apply p-3 bg-terminal-200 border-b border-terminal-300 flex items-center;
+  }
 
-.terminal-context-menu-item:hover {
-  background: #3a3a3a;
-  color: #fff;
-}
+  .command-text {
+    @apply text-white font-medium break-all;
+  }
 
-.terminal-context-menu-item:active {
-  background: #4a4a4a;
-}
+  .command-output {
+    @apply p-3 bg-terminal-input;
+  }
 
-.copy-status {
-  font-size: 12px;
-  opacity: 0.8;
-  color: #6aa84f;
-  margin-left: 8px;
+  .output-line {
+    @apply py-0.5 whitespace-pre-wrap break-words select-text;
+  }
+
+  .terminal-error {
+    @apply text-accent-red;
+  }
+
+  .scroll-to-bottom {
+    @apply fixed right-12 bottom-[100px] bg-terminal-400/80 border-none rounded-lg w-10 h-8
+           flex items-center justify-center cursor-pointer transition-all duration-200
+           opacity-0 translate-y-5 z-[1000] p-0 shadow-lg text-sm;
+  }
+
+  .scroll-to-bottom.visible {
+    @apply opacity-100 translate-y-0;
+  }
+
+  .scroll-to-bottom:hover {
+    @apply bg-terminal-400/90 -translate-y-0.5 shadow-xl;
+  }
+
+  .scroll-to-bottom:active {
+    @apply translate-y-0 bg-terminal-300/85 shadow-lg;
+  }
+
+  .scroll-to-bottom-icon {
+    @apply w-[18px] h-[18px] fill-current opacity-80;
+  }
+
+  .scroll-to-bottom:hover .scroll-to-bottom-icon {
+    @apply opacity-100;
+  }
+
+  .terminal-context-menu {
+    @apply fixed bg-terminal-50 border border-terminal-300 rounded-md shadow-lg
+           min-w-[160px] z-[1000] overflow-hidden;
+  }
+
+  .terminal-context-menu-item {
+    @apply px-3 py-2 cursor-pointer text-terminal-700 text-sm transition-all duration-200
+           select-none flex items-center gap-2 justify-between;
+  }
+
+  .terminal-context-menu-item:hover {
+    @apply bg-terminal-300 text-white;
+  }
+
+  .terminal-context-menu-item:active {
+    @apply bg-terminal-400;
+  }
+
+  .copy-status {
+    @apply text-xs opacity-80 text-accent-green ml-2;
+  }
 } 
