@@ -5,6 +5,9 @@
   - `components/`
     - `Terminal/`
       - `Terminal.tsx` - 主终端组件
+      - `CommandBlock.tsx` - 命令块组件
+      - `ContextMenu.tsx` - 右键菜单组件
+      - `types.ts` - 类型定义文件
       - `styles.css` - 终端样式
     - `Tabs.tsx` - 标签页管理组件
   - `App.tsx` - 主应用组件
@@ -35,12 +38,22 @@
   - 处理命令输入和显示
   - 支持命令历史显示
   - 错误信息展示
+  - 支持文本选择和复制功能
+  - 自动滚动和手动滚动控制
 
 - 后端部分：
   - 命令执行处理
   - 进程管理
   - 输出处理（标准输出和错误输出）
   - 跨平台支持（macOS优先）
+
+## 组件说明
+- `Terminal/`
+  - `Terminal.tsx`: 主终端组件，负责整体终端的管理和渲染
+  - `CommandBlock.tsx`: 命令块组件，处理单个命令的显示和交互
+  - `ContextMenu.tsx`: 右键菜单组件，处理文本选择和复制功能
+  - `types.ts`: 统一的类型定义文件
+  - `styles.css`: 终端相关样式
 
 ## 开发命令
 - `npm run tauri dev`    # 开发模式运行

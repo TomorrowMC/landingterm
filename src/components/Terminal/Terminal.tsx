@@ -4,10 +4,8 @@ import { listen } from '@tauri-apps/api/event';
 import { writeText } from '@tauri-apps/api/clipboard';
 import './styles.css';
 import { IconChevronDown } from '@tabler/icons-react';
-
-interface TerminalProps {
-  id: string;
-}
+import { CommandBlock } from './CommandBlock';
+import { TerminalProps, CommandBlock as CommandBlockType, StreamOutput, ContextMenuPosition } from './types';
 
 interface CommandResult {
   stdout: string;
@@ -20,19 +18,6 @@ interface CommandBlock {
   command: string;
   output: string[];
   directory: string;
-}
-
-interface StreamOutput {
-  content: string;
-  output_type: string;
-  current_dir: string;
-  should_replace_last: boolean;
-  terminalId: string;
-}
-
-interface ContextMenuPosition {
-  x: number;
-  y: number;
 }
 
 // ------------------ 右键菜单组件 ------------------
@@ -184,16 +169,15 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState<string>('');
-  const [commandBlocks, setCommandBlocks] = useState<CommandBlock[]>([]);
+  const [commandBlocks, setCommandBlocks] = useState<CommandBlockType[]>([]);
   const [currentDir, setCurrentDir] = useState<string>('~');
   const [blockId, setBlockId] = useState(0);
   const [autoScroll, setAutoScroll] = useState(true);
   const scrollTimeout = useRef<NodeJS.Timeout>();
   const [isExecuting, setIsExecuting] = useState(false);
-  const [currentCommandBlock, setCurrentCommandBlock] = useState<CommandBlock | null>(null);
+  const [currentCommandBlock, setCurrentCommandBlock] = useState<CommandBlockType | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
 
-  // 滚动到底部
   const scrollToBottom = (delay: number = 0) => {
     setTimeout(() => {
       const terminal = terminalRef.current;
@@ -206,7 +190,6 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     }, delay);
   };
 
-  // 监听滚动，判断是否贴底
   useEffect(() => {
     const terminal = terminalRef.current;
     if (!terminal) return;
@@ -224,14 +207,12 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     return () => terminal.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // 命令块变化后保持自动滚动
   useEffect(() => {
     if (commandBlocks.length > 0) {
       scrollToBottom(50);
     }
   }, [commandBlocks]);
 
-  // 初始化：创建终端、执行 pwd
   useEffect(() => {
     invoke('execute_command_stream', { 
       command: 'pwd',
@@ -244,7 +225,6 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     };
   }, [id]);
 
-  // 保持输入框聚焦（若用户不是在选择文本）
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (!isSelecting && !window.getSelection()?.toString()) {
@@ -273,26 +253,20 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     };
   }, [isSelecting]);
 
-  // 监听后端的流式输出事件
   useEffect(() => {
     const setupListeners = async () => {
       const unlisten = await listen<StreamOutput>('terminal-output', (event) => {
-        const { content, output_type, current_dir, should_replace_last, terminalId } = event.payload;
+        const { content, current_dir, should_replace_last, terminalId } = event.payload;
         
-        // 若不是当前终端的消息则忽略
         if (terminalId !== id) return;
 
-        // 更新当前目录
         setCurrentDir(current_dir);
 
-        // 如果有命令块在执行，就把输出追加/替换到该块
         if (currentCommandBlock && content) {
           setCommandBlocks(prev => {
             const newBlocks = [...prev];
             const lastBlock = newBlocks[newBlocks.length - 1];
 
-            // 1) 去除所有"动画字符"以做前缀比较
-            //    这些字符通常是⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏
             const spinnerRegex = /[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/g;
             const sanitizedCurrent = content.replace(spinnerRegex, '');
 
@@ -300,14 +274,11 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
             const lastLine = lastOutputIndex >= 0 ? lastBlock.output[lastOutputIndex] : '';
             const sanitizedLast = lastLine.replace(spinnerRegex, '');
 
-            // 2) 判断是否需要替换（同前缀 or 后端标记should_replace_last）
             const doReplace = (sanitizedCurrent === sanitizedLast) || should_replace_last;
 
             if (doReplace && lastBlock.output.length > 0) {
-              // 替换最后一行
               lastBlock.output[lastBlock.output.length - 1] = content;
             } else {
-              // 直接追加新行
               lastBlock.output.push(content);
             }
             return newBlocks;
@@ -315,7 +286,6 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
         }
       });
 
-      // 命令完成事件
       const unlistenComplete = await listen<{ terminalId: string }>('terminal-command-complete', (event) => {
         if (event.payload.terminalId !== id) return;
         setCurrentCommandBlock(null);
@@ -332,7 +302,6 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     setupListeners();
   }, [currentCommandBlock, id]);
 
-  // 处理回车输入命令
   const handleKeyPress = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -341,7 +310,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
         setAutoScroll(true);
         scrollToBottom(0);
 
-        const newBlock: CommandBlock = {
+        const newBlock: CommandBlockType = {
           id: blockId,
           command: input,
           output: [],
@@ -359,7 +328,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
           terminalId: id
         });
       } catch (error) {
-        const errorBlock: CommandBlock = {
+        const errorBlock: CommandBlockType = {
           id: blockId,
           command: input,
           output: [`Error: ${error}`],
@@ -381,7 +350,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
         <div className="terminal-content">
           <div className="terminal-blocks">
             {commandBlocks.map((block) => (
-              <CommandBlockComponent key={block.id} {...block} />
+              <CommandBlock key={block.id} {...block} />
             ))}
           </div>
         </div>
