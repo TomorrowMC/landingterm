@@ -22,7 +22,7 @@
   }
 
   .terminal-content {
-    @apply flex flex-col min-h-full pb-[120px];
+    @apply flex flex-col min-h-full;
   }
 
   .terminal-blocks {
@@ -44,7 +44,7 @@
   }
 
   .terminal-input-main {
-    @apply flex items-center p-3;
+    @apply flex items-start p-3;
   }
 
   .terminal-input-tools {
@@ -73,7 +73,10 @@
   }
 
   .terminal-input {
-    @apply flex-1 bg-transparent border-none text-white font-terminal p-1 m-0 outline-none;
+    @apply flex-1 bg-transparent border-none text-white font-terminal p-1 m-0 outline-none resize-none
+           scrollbar scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20 
+           hover:scrollbar-thumb-white/30;
+    overflow-y: auto;
   }
 
   .command-block {

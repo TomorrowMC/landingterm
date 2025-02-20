@@ -169,7 +169,7 @@ const CommandBlockComponent: React.FC<CommandBlock> = ({ command, output, direct
 // ------------------ 主终端组件 ------------------
 export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState<string>('');
   const [commandBlocks, setCommandBlocks] = useState<CommandBlockType[]>([]);
   const [currentDir, setCurrentDir] = useState<string>('~');
@@ -180,41 +180,78 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   const [currentCommandBlock, setCurrentCommandBlock] = useState<CommandBlockType | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const { isOpen, setIsOpen } = useFavoriteStore();
+  const [inputHeight, setInputHeight] = useState(0);
+
+  const adjustTextareaHeight = () => {
+    const textarea = inputRef.current;
+    if (textarea) {
+      const previousHeight = textarea.style.height;
+      textarea.style.height = 'auto';
+      
+      // 如果内容高度超过最大高度，启用滚动
+      if (textarea.scrollHeight > 150) {
+        textarea.style.height = '150px';
+        textarea.style.overflowY = 'auto';
+        // 滚动到光标位置
+        const cursorPosition = textarea.selectionStart;
+        requestAnimationFrame(() => {
+          // 临时设置高度以获取正确的光标位置
+          textarea.style.height = 'auto';
+          const cursorY = textarea.scrollHeight;
+          textarea.style.height = '150px';
+          
+          // 确保光标可见
+          if (cursorPosition === textarea.value.length) {
+            // 如果光标在末尾，滚动到底部
+            textarea.scrollTop = textarea.scrollHeight;
+          } else {
+            // 否则滚动到光标位置
+            const lineHeight = parseInt(getComputedStyle(textarea).lineHeight);
+            const approximateLines = cursorPosition / 50; // 假设平均每行50个字符
+            const scrollPosition = Math.max(0, (approximateLines * lineHeight) - 75);
+            textarea.scrollTop = scrollPosition;
+          }
+        });
+      } else {
+        textarea.style.height = `${textarea.scrollHeight}px`;
+        textarea.style.overflowY = 'hidden';
+      }
+      
+      // 计算整个输入区域的高度（包括padding和border）
+      const inputContainer = textarea.closest('.terminal-input-line');
+      if (inputContainer) {
+        const totalHeight = inputContainer.getBoundingClientRect().height;
+        setInputHeight(totalHeight + 32); // 32px for bottom margin
+
+        // 如果高度发生变化，自动滚动到底部
+        if (previousHeight !== textarea.style.height) {
+          scrollToBottom(0);
+        }
+      }
+    }
+  };
 
   const scrollToBottom = (delay: number = 0) => {
     setTimeout(() => {
       const terminal = terminalRef.current;
       if (terminal) {
+        const newScrollTop = terminal.scrollHeight - terminal.clientHeight;
         terminal.scrollTo({
-          top: terminal.scrollHeight,
-          behavior: 'smooth'
+          top: newScrollTop,
+          behavior: delay > 0 ? 'smooth' : 'auto'  // 立即滚动时不使用平滑效果
         });
       }
     }, delay);
   };
 
-  useEffect(() => {
-    const terminal = terminalRef.current;
-    if (!terminal) return;
-
-    const handleScroll = () => {
-      if (scrollTimeout.current) {
-        clearTimeout(scrollTimeout.current);
-      }
-      const isNearBottom = 
-        terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight < 20;
-      setAutoScroll(isNearBottom);
-    };
-
-    terminal.addEventListener('scroll', handleScroll);
-    return () => terminal.removeEventListener('scroll', handleScroll);
-  }, []);
+  // 监听输入变化
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+  };
 
   useEffect(() => {
-    if (commandBlocks.length > 0) {
-      scrollToBottom(50);
-    }
-  }, [commandBlocks]);
+    adjustTextareaHeight();
+  }, [input]);
 
   useEffect(() => {
     invoke('execute_command_stream', { 
@@ -339,44 +376,79 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     setupListeners();
   }, [currentCommandBlock, id]);
 
+  useEffect(() => {
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+
+    const handleScroll = () => {
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
+      const isNearBottom = 
+        terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight < 20;
+      setAutoScroll(isNearBottom);
+    };
+
+    terminal.addEventListener('scroll', handleScroll);
+    return () => terminal.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (commandBlocks.length > 0) {
+      scrollToBottom(50);
+    }
+  }, [commandBlocks]);
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [input]);
+
   const handleKeyPress = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      e.preventDefault();
-      try {
-        setIsExecuting(true);
-        setAutoScroll(true);
-        scrollToBottom(0);
-
-        const newBlock: CommandBlockType = {
-          id: blockId,
-          command: input,
-          output: [],
-          directory: currentDir
-        };
-        
-        setCommandBlocks(prev => [...prev, newBlock]);
-        setCurrentCommandBlock(newBlock);
-        setBlockId(prev => prev + 1);
-        const cmdToRun = input; 
-        setInput('');
-
-        await invoke('execute_command_stream', { 
-          command: cmdToRun,
-          terminalId: id
+      if (e.shiftKey) {
+        // 换行时立即调整高度并滚动
+        requestAnimationFrame(() => {
+          adjustTextareaHeight();
+          scrollToBottom(0);
         });
-      } catch (error) {
-        const errorBlock: CommandBlockType = {
-          id: blockId,
-          command: input,
-          output: [`Error: ${error}`],
-          directory: currentDir
-        };
-        setCommandBlocks(prev => [...prev, errorBlock]);
-        setBlockId(prev => prev + 1);
-        setInput('');
-        setIsExecuting(false);
-        setCurrentCommandBlock(null);
-        scrollToBottom(50);
+      } else {
+        e.preventDefault();
+        try {
+          setIsExecuting(true);
+          setAutoScroll(true);
+          scrollToBottom(0);
+
+          const newBlock: CommandBlockType = {
+            id: blockId,
+            command: input,
+            output: [],
+            directory: currentDir
+          };
+          
+          setCommandBlocks(prev => [...prev, newBlock]);
+          setCurrentCommandBlock(newBlock);
+          setBlockId(prev => prev + 1);
+          const cmdToRun = input; 
+          setInput('');
+
+          await invoke('execute_command_stream', { 
+            command: cmdToRun,
+            terminalId: id
+          });
+        } catch (error) {
+          const errorBlock: CommandBlockType = {
+            id: blockId,
+            command: input,
+            output: [`Error: ${error}`],
+            directory: currentDir
+          };
+          setCommandBlocks(prev => [...prev, errorBlock]);
+          setBlockId(prev => prev + 1);
+          setInput('');
+          setIsExecuting(false);
+          setCurrentCommandBlock(null);
+          scrollToBottom(50);
+        }
       }
     }
   };
@@ -442,7 +514,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     <div className="terminal-wrapper">
       <div className={`terminal-main-content ${isOpen ? 'with-panel' : ''}`}>
         <div className="terminal-scroll-container" ref={terminalRef}>
-          <div className="terminal-content">
+          <div className="terminal-content" style={{ paddingBottom: `${inputHeight}px` }}>
             <div className="terminal-blocks">
               {commandBlocks.map((block) => (
                 <CommandBlock key={block.id} {...block} />
@@ -466,24 +538,27 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
           <div className="terminal-input-line">
             <div className="terminal-input-main">
               <span className="prompt">{currentDir} $ </span>
-              <input
+              <textarea
                 ref={inputRef}
-                type="text"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyPress}
                 className="terminal-input"
                 autoFocus
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck="false"
                 autoComplete="off"
+                rows={1}
               />
             </div>
             <div className="terminal-input-tools">
               <button
                 className={`terminal-icon-button ${isOpen ? 'active' : ''}`}
-                onClick={() => setIsOpen(!isOpen).catch(console.error)}
+                onClick={() => {
+                  setIsOpen(!isOpen)
+                    .catch(error => console.error('Failed to toggle favorite commands panel:', error));
+                }}
                 title={isOpen ? "Close Favorite Commands" : "Open Favorite Commands"}
               >
                 <IconStar size={16} />

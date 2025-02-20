@@ -12,10 +12,10 @@ interface FavoriteCommand {
 interface FavoriteStore {
   isOpen: boolean;
   commands: FavoriteCommand[];
-  setIsOpen: (isOpen: boolean) => void;
-  setCommands: (commands: FavoriteCommand[]) => void;
-  addCommand: (command: FavoriteCommand) => void;
-  deleteCommand: (id: string) => void;
+  setIsOpen: (isOpen: boolean) => Promise<void>;
+  setCommands: (commands: FavoriteCommand[]) => Promise<void>;
+  addCommand: (command: FavoriteCommand) => Promise<void>;
+  deleteCommand: (id: string) => Promise<void>;
   store: Store | null;
   initStore: () => Promise<void>;
 }
