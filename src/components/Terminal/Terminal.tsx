@@ -27,6 +27,7 @@ interface StreamOutput {
   output_type: string;
   current_dir: string;
   should_replace_last: boolean;
+  terminal_id: string;
 }
 
 interface ContextMenuPosition {
@@ -34,30 +35,20 @@ interface ContextMenuPosition {
   y: number;
 }
 
-const ContextMenu: React.FC<{
+const ContextMenu = React.forwardRef<HTMLDivElement, {
   position: ContextMenuPosition;
   onClose: () => void;
   onCopy: () => void;
   status: string;
-}> = ({ position, onClose, onCopy, status }) => {
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      e.preventDefault();
-      onClose();
-    };
-    
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, [onClose]);
-
+}>(({ position, onClose, onCopy, status }, ref) => {
   return (
     <div 
+      ref={ref}
       className="terminal-context-menu"
       style={{ 
         left: position.x,
         top: position.y
       }}
-      onClick={(e) => e.stopPropagation()}
     >
       <div 
         className="terminal-context-menu-item"
@@ -71,12 +62,13 @@ const ContextMenu: React.FC<{
       </div>
     </div>
   );
-};
+});
 
 const CommandBlockComponent: React.FC<CommandBlock> = ({ command, output, directory }) => {
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [copyStatus, setCopyStatus] = useState<string>('');
   const [selectedText, setSelectedText] = useState<string>('');
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -87,7 +79,7 @@ const CommandBlockComponent: React.FC<CommandBlock> = ({ command, output, direct
       setSelectedText(text);
       setContextMenu({ x: e.clientX, y: e.clientY });
       setCopyStatus('');
-      console.log('Selected text:', text); // Debug log
+      console.log('Selected text:', text);
     }
   };
 
@@ -96,7 +88,7 @@ const CommandBlockComponent: React.FC<CommandBlock> = ({ command, output, direct
     const text = selection?.toString() || '';
     if (text) {
       setSelectedText(text);
-      console.log('Updated selected text:', text); // Debug log
+      console.log('Updated selected text:', text);
     }
   };
 
@@ -107,12 +99,13 @@ const CommandBlockComponent: React.FC<CommandBlock> = ({ command, output, direct
         return;
       }
 
-      console.log('Copying text:', selectedText); // Debug log
+      console.log('Copying text:', selectedText);
       await writeText(selectedText);
       console.log('Text copied successfully');
       
       setCopyStatus('Copied!');
       
+      // 3秒后清除状态
       setTimeout(() => {
         setCopyStatus('');
       }, 3000);
@@ -120,12 +113,26 @@ const CommandBlockComponent: React.FC<CommandBlock> = ({ command, output, direct
     } catch (error) {
       console.error('Failed to copy text:', error);
       setCopyStatus('Copy failed');
-    } finally {
-      setTimeout(() => {
-        setContextMenu(null);
-      }, 500);
     }
   };
+
+  // 添加点击外部关闭菜单的处理
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setContextMenu(null);
+        setSelectedText('');
+      }
+    };
+
+    if (contextMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [contextMenu]);
 
   return (
     <div 
@@ -158,6 +165,7 @@ const CommandBlockComponent: React.FC<CommandBlock> = ({ command, output, direct
       )}
       {contextMenu && (
         <ContextMenu
+          ref={menuRef}
           position={contextMenu}
           onClose={() => {
             setContextMenu(null);
@@ -229,8 +237,10 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   // 初始化终端
   useEffect(() => {
     // 使用新的流式命令来获取当前目录
-    invoke('execute_command_stream', { command: 'pwd' })
-      .catch(console.error);
+    invoke('execute_command_stream', { 
+      command: 'pwd',
+      terminal_id: id
+    }).catch(console.error);
 
     invoke('create_terminal', { id });
     return () => {
@@ -272,8 +282,13 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   useEffect(() => {
     const setupListeners = async () => {
       const unlisten = await listen<StreamOutput>('terminal-output', (event) => {
-        const { content, output_type, current_dir, should_replace_last } = event.payload;
+        const { content, output_type, current_dir, should_replace_last, terminal_id } = event.payload;
         
+        // 只处理属于当前终端的输出
+        if (terminal_id !== id) {
+          return;
+        }
+
         setCurrentDir(current_dir);
 
         if (currentCommandBlock) {
@@ -283,7 +298,6 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
             
             if (content) {
               if (should_replace_last && lastBlock.output.length > 0) {
-                // 如果需要替换最后一行（处理\r的情况）
                 lastBlock.output[lastBlock.output.length - 1] = content;
               } else {
                 lastBlock.output.push(content);
@@ -295,7 +309,12 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
         }
       });
 
-      const unlistenComplete = await listen<number | null>('terminal-command-complete', () => {
+      const unlistenComplete = await listen<{terminal_id: string}>('terminal-command-complete', (event) => {
+        // 只处理属于当前终端的完成事件
+        if (event.payload.terminal_id !== id) {
+          return;
+        }
+
         setCurrentCommandBlock(null);
         setIsExecuting(false);
         scrollToBottom(50);
@@ -308,7 +327,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     };
 
     setupListeners();
-  }, [currentCommandBlock]);
+  }, [currentCommandBlock, id]);
 
   const handleKeyPress = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -319,7 +338,6 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
         setAutoScroll(true);
         scrollToBottom(0);
 
-        // Create a new command block
         const newBlock: CommandBlock = {
           id: blockId,
           command: input,
@@ -332,8 +350,11 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
         setBlockId(prev => prev + 1);
         setInput('');
 
-        // Execute the command with streaming
-        await invoke('execute_command_stream', { command: input });
+        // 修改参数名为 terminalId
+        await invoke('execute_command_stream', { 
+          command: input,
+          terminalId: id  // 改为 terminalId
+        });
       } catch (error) {
         const errorBlock: CommandBlock = {
           id: blockId,

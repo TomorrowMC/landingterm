@@ -9,6 +9,7 @@ use once_cell::sync::Lazy;
 use std::io::{BufReader, Read};
 use tauri::Runtime;
 use regex::Regex;
+use serde_json;
 
 lazy_static! {
     static ref CURRENT_DIR: Mutex<PathBuf> = Mutex::new(
@@ -42,12 +43,13 @@ pub struct CommandOutput {
     pub current_dir: String,
 }
 
-#[derive(Clone, serde::Serialize)]
+#[derive(Serialize, Clone)]
 pub struct StreamOutput {
-    content: String,
-    output_type: String,
-    current_dir: String,
-    should_replace_last: bool,
+    pub content: String,
+    pub output_type: String,
+    pub current_dir: String,
+    pub should_replace_last: bool,
+    pub terminal_id: String,
 }
 
 #[allow(dead_code)]
@@ -182,11 +184,12 @@ pub async fn close_terminal(id: String) -> Result<(), String> {
 pub async fn execute_command_stream<R: Runtime>(
     window: tauri::Window<R>,
     command: String,
+    terminal_id: String,
 ) -> Result<(), String> {
     let current_dir = CURRENT_DIR.lock().unwrap().clone();
     
     if command.trim().starts_with("cd") {
-        return handle_cd_command(&command, window).await;
+        return handle_cd_command(&command, window, &terminal_id).await;
     }
 
     // 检查命令是否是下载相关命令
@@ -229,11 +232,13 @@ pub async fn execute_command_stream<R: Runtime>(
 
     let window_clone = window.clone();
     let current_dir_str = format_current_dir(&current_dir);
+    let terminal_id_clone = terminal_id.clone();
 
     // Handle stdout in a separate task
     let stdout_task = {
         let window = window_clone.clone();
         let current_dir = current_dir_str.clone();
+        let terminal_id = terminal_id_clone.clone();
         tauri::async_runtime::spawn(async move {
             let mut reader = BufReader::new(stdout);
             let mut buffer = [0u8; 1024];
@@ -248,15 +253,12 @@ pub async fn execute_command_stream<R: Runtime>(
                     Ok(0) => break, // EOF
                     Ok(n) => {
                         let chunk = String::from_utf8_lossy(&buffer[..n]);
-                        
-                        // 清理ANSI转义序列
                         let cleaned_chunk = ANSI_ESCAPE_RE.replace_all(&chunk, "");
                         
                         for c in cleaned_chunk.chars() {
                             match c {
                                 '\r' | '\n' => {
                                     if !current_line.is_empty() {
-                                        // 检查是否是进度信息
                                         if is_download_command {
                                             let mut new_progress = String::new();
                                             let mut new_status = String::new();
@@ -280,6 +282,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                     output_type: "stdout".to_string(),
                                                     current_dir: current_dir.clone(),
                                                     should_replace_last: false,
+                                                    terminal_id: terminal_id.clone(),
                                                 });
                                             }
                                             
@@ -293,6 +296,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                     output_type: "stdout".to_string(),
                                                     current_dir: current_dir.clone(),
                                                     should_replace_last: true,
+                                                    terminal_id: terminal_id.clone(),
                                                 });
                                             } else if !current_line.trim().is_empty() && 
                                                      !STATUS_RE.is_match(&current_line) {
@@ -302,6 +306,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                     output_type: "stdout".to_string(),
                                                     current_dir: current_dir.clone(),
                                                     should_replace_last: false,
+                                                    terminal_id: terminal_id.clone(),
                                                 });
                                             }
                                         } else {
@@ -311,6 +316,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                 output_type: "stdout".to_string(),
                                                 current_dir: current_dir.clone(),
                                                 should_replace_last: false,
+                                                terminal_id: terminal_id.clone(),
                                             });
                                         }
                                     }
@@ -328,6 +334,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                 output_type: "stdout".to_string(),
                                 current_dir: current_dir.clone(),
                                 should_replace_last: false,
+                                terminal_id: terminal_id.clone(),
                             });
                         }
                     }
@@ -337,6 +344,7 @@ pub async fn execute_command_stream<R: Runtime>(
                             output_type: "stderr".to_string(),
                             current_dir: current_dir.clone(),
                             should_replace_last: false,
+                            terminal_id: terminal_id.clone(),
                         });
                         break;
                     }
@@ -349,6 +357,7 @@ pub async fn execute_command_stream<R: Runtime>(
     let stderr_task = {
         let window = window_clone;
         let current_dir = current_dir_str;
+        let terminal_id = terminal_id_clone;
         tauri::async_runtime::spawn(async move {
             let mut reader = BufReader::new(stderr);
             let mut buffer = [0u8; 1024];
@@ -378,6 +387,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                         output_type: "stderr".to_string(),
                                                         current_dir: current_dir.clone(),
                                                         should_replace_last: false,
+                                                        terminal_id: terminal_id.clone(),
                                                     });
                                                 }
                                             } else if PROGRESS_RE.is_match(&current_line) {
@@ -387,6 +397,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                     output_type: "stderr".to_string(),
                                                     current_dir: current_dir.clone(),
                                                     should_replace_last: true,
+                                                    terminal_id: terminal_id.clone(),
                                                 });
                                             } else if !current_line.trim().is_empty() {
                                                 let _ = window.emit("terminal-output", StreamOutput {
@@ -394,6 +405,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                     output_type: "stderr".to_string(),
                                                     current_dir: current_dir.clone(),
                                                     should_replace_last: false,
+                                                    terminal_id: terminal_id.clone(),
                                                 });
                                             }
                                         } else {
@@ -402,6 +414,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                                 output_type: "stderr".to_string(),
                                                 current_dir: current_dir.clone(),
                                                 should_replace_last: false,
+                                                terminal_id: terminal_id.clone(),
                                             });
                                         }
                                     }
@@ -418,6 +431,7 @@ pub async fn execute_command_stream<R: Runtime>(
                                 output_type: "stderr".to_string(),
                                 current_dir: current_dir.clone(),
                                 should_replace_last: false,
+                                terminal_id: terminal_id.clone(),
                             });
                         }
                     }
@@ -427,6 +441,7 @@ pub async fn execute_command_stream<R: Runtime>(
                             output_type: "stderr".to_string(),
                             current_dir: current_dir.clone(),
                             should_replace_last: false,
+                            terminal_id: terminal_id.clone(),
                         });
                         break;
                     }
@@ -442,13 +457,20 @@ pub async fn execute_command_stream<R: Runtime>(
     let _ = stdout_task.await;
     let _ = stderr_task.await;
 
-    // Emit command completion event
-    let _ = window.emit("terminal-command-complete", status.code());
+    // Emit command completion event with terminal ID
+    let _ = window.emit("terminal-command-complete", serde_json::json!({
+        "terminal_id": terminal_id,
+        "code": status.code()
+    }));
 
     Ok(())
 }
 
-async fn handle_cd_command<R: Runtime>(command: &str, window: tauri::Window<R>) -> Result<(), String> {
+async fn handle_cd_command<R: Runtime>(
+    command: &str,
+    window: tauri::Window<R>,
+    terminal_id: &str,
+) -> Result<(), String> {
     let mut current_dir = CURRENT_DIR.lock().unwrap();
     let parts: Vec<&str> = command.trim().splitn(2, ' ').collect();
     let new_dir = parts.get(1).map(|s| s.trim()).unwrap_or("~");
@@ -483,6 +505,7 @@ async fn handle_cd_command<R: Runtime>(command: &str, window: tauri::Window<R>) 
             output_type: "stdout".to_string(),
             current_dir: current_dir_str,
             should_replace_last: false,
+            terminal_id: terminal_id.to_string(),
         });
         Ok(())
     } else {
@@ -493,6 +516,7 @@ async fn handle_cd_command<R: Runtime>(command: &str, window: tauri::Window<R>) 
             output_type: "stderr".to_string(),
             current_dir: current_dir_str,
             should_replace_last: false,
+            terminal_id: terminal_id.to_string(),
         });
         Ok(())
     }
