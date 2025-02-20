@@ -25,6 +25,7 @@ interface StreamOutput {
   content: string;
   output_type: string;
   current_dir: string;
+  should_replace_last: boolean;
 }
 
 const CommandBlockComponent: React.FC<CommandBlock> = ({ command, output, directory }) => (
@@ -122,7 +123,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   useEffect(() => {
     const setupListeners = async () => {
       const unlisten = await listen<StreamOutput>('terminal-output', (event) => {
-        const { content, output_type, current_dir } = event.payload;
+        const { content, output_type, current_dir, should_replace_last } = event.payload;
         
         setCurrentDir(current_dir);
 
@@ -132,7 +133,12 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
             const lastBlock = newBlocks[newBlocks.length - 1];
             
             if (content) {
-              lastBlock.output.push(content);
+              if (should_replace_last && lastBlock.output.length > 0) {
+                // 如果需要替换最后一行（处理\r的情况）
+                lastBlock.output[lastBlock.output.length - 1] = content;
+              } else {
+                lastBlock.output.push(content);
+              }
             }
             
             return newBlocks;

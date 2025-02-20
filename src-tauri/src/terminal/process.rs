@@ -6,8 +6,9 @@ use std::sync::Mutex;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use once_cell::sync::Lazy;
-use std::io::{BufRead, BufReader};
-use tauri::{Manager, Runtime};
+use std::io::{BufReader, Read};
+use tauri::Runtime;
+use regex::Regex;
 
 lazy_static! {
     static ref CURRENT_DIR: Mutex<PathBuf> = Mutex::new(
@@ -18,6 +19,21 @@ lazy_static! {
 // 存储所有终端进程的全局 HashMap
 static TERMINAL_PROCESSES: Lazy<Mutex<HashMap<String, TerminalProcess>>> = 
     Lazy::new(|| Mutex::new(HashMap::new()));
+
+// 用于匹配ANSI转义序列的正则表达式
+static ANSI_ESCAPE_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]").unwrap()
+});
+
+// 用于提取进度信息的正则表达式
+static PROGRESS_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"([\d.]+\s*(?:GB|MB|KB)/[\d.]+\s*(?:GB|MB|KB)|[\d.]+%|[\d.]+\s*(?:GB|MB|KB)/s)").unwrap()
+});
+
+// 用于匹配状态信息的正则表达式
+static STATUS_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"pulling (?:manifest|[0-9a-f]{12})\.\.\.").unwrap()
+});
 
 #[derive(Serialize)]
 pub struct CommandOutput {
@@ -31,6 +47,7 @@ pub struct StreamOutput {
     content: String,
     output_type: String,
     current_dir: String,
+    should_replace_last: bool,
 }
 
 #[allow(dead_code)]
@@ -168,19 +185,42 @@ pub async fn execute_command_stream<R: Runtime>(
 ) -> Result<(), String> {
     let current_dir = CURRENT_DIR.lock().unwrap().clone();
     
-    // Handle cd command separately since it needs to modify the current directory
     if command.trim().starts_with("cd") {
         return handle_cd_command(&command, window).await;
     }
 
-    let mut child = Command::new("zsh")
-        .current_dir(&current_dir)
-        .arg("-c")
-        .arg(command)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|e| e.to_string())?;
+    // 检查命令是否是下载相关命令
+    let is_download_command = command.contains("ollama") || command.contains("curl") || command.contains("wget");
+
+    // 检查是否安装了unbuffer
+    let has_unbuffer = Command::new("which")
+        .arg("unbuffer")
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+
+    let mut child = if has_unbuffer {
+        Command::new("unbuffer")
+            .current_dir(&current_dir)
+            .arg("zsh")
+            .arg("-c")
+            .arg(&command)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+    } else {
+        // 如果没有unbuffer，尝试使用script命令
+        Command::new("script")
+            .current_dir(&current_dir)
+            .arg("-q")
+            .arg("/dev/null")
+            .arg("zsh")
+            .arg("-c")
+            .arg(&command)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+    }.map_err(|e| e.to_string())?;
 
     let stdout = child.stdout.take()
         .ok_or_else(|| "Failed to capture stdout".to_string())?;
@@ -195,32 +235,201 @@ pub async fn execute_command_stream<R: Runtime>(
         let window = window_clone.clone();
         let current_dir = current_dir_str.clone();
         tauri::async_runtime::spawn(async move {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines() {
-                if let Ok(content) = line {
-                    let _ = window.emit("terminal-output", StreamOutput {
-                        content,
-                        output_type: "stdout".to_string(),
-                        current_dir: current_dir.clone(),
-                    });
+            let mut reader = BufReader::new(stdout);
+            let mut buffer = [0u8; 1024];
+            let mut current_line = String::new();
+            let mut progress_info = String::new();
+            let mut status_info = String::new();
+            let mut is_progress_line = false;
+            let mut last_status = String::new();
+
+            loop {
+                match reader.read(&mut buffer) {
+                    Ok(0) => break, // EOF
+                    Ok(n) => {
+                        let chunk = String::from_utf8_lossy(&buffer[..n]);
+                        
+                        // 清理ANSI转义序列
+                        let cleaned_chunk = ANSI_ESCAPE_RE.replace_all(&chunk, "");
+                        
+                        for c in cleaned_chunk.chars() {
+                            match c {
+                                '\r' | '\n' => {
+                                    if !current_line.is_empty() {
+                                        // 检查是否是进度信息
+                                        if is_download_command {
+                                            let mut new_progress = String::new();
+                                            let mut new_status = String::new();
+                                            
+                                            // 提取进度信息
+                                            for cap in PROGRESS_RE.find_iter(&current_line) {
+                                                new_progress.push_str(cap.as_str());
+                                                new_progress.push(' ');
+                                            }
+                                            
+                                            // 提取状态信息
+                                            if let Some(status_match) = STATUS_RE.find(&current_line) {
+                                                new_status = status_match.as_str().to_string();
+                                            }
+                                            
+                                            // 更新状态信息（只有当状态改变时）
+                                            if !new_status.is_empty() && new_status != last_status {
+                                                last_status = new_status.clone();
+                                                let _ = window.emit("terminal-output", StreamOutput {
+                                                    content: new_status,
+                                                    output_type: "stdout".to_string(),
+                                                    current_dir: current_dir.clone(),
+                                                    should_replace_last: false,
+                                                });
+                                            }
+                                            
+                                            // 更新进度信息
+                                            if !new_progress.is_empty() {
+                                                progress_info = new_progress;
+                                                is_progress_line = true;
+                                                
+                                                let _ = window.emit("terminal-output", StreamOutput {
+                                                    content: progress_info.clone(),
+                                                    output_type: "stdout".to_string(),
+                                                    current_dir: current_dir.clone(),
+                                                    should_replace_last: true,
+                                                });
+                                            } else if !current_line.trim().is_empty() && 
+                                                     !STATUS_RE.is_match(&current_line) {
+                                                // 如果不是进度信息也不是状态信息，且不是空行，正常发送
+                                                let _ = window.emit("terminal-output", StreamOutput {
+                                                    content: current_line.clone(),
+                                                    output_type: "stdout".to_string(),
+                                                    current_dir: current_dir.clone(),
+                                                    should_replace_last: false,
+                                                });
+                                            }
+                                        } else {
+                                            // 非下载命令，正常发送
+                                            let _ = window.emit("terminal-output", StreamOutput {
+                                                content: current_line.clone(),
+                                                output_type: "stdout".to_string(),
+                                                current_dir: current_dir.clone(),
+                                                should_replace_last: false,
+                                            });
+                                        }
+                                    }
+                                    current_line.clear();
+                                }
+                                _ => current_line.push(c),
+                            }
+                        }
+                        
+                        // 如果还有未发送的内容且不是进度信息，发送它
+                        if !current_line.is_empty() && !is_progress_line && 
+                           !STATUS_RE.is_match(&current_line) {
+                            let _ = window.emit("terminal-output", StreamOutput {
+                                content: current_line.clone(),
+                                output_type: "stdout".to_string(),
+                                current_dir: current_dir.clone(),
+                                should_replace_last: false,
+                            });
+                        }
+                    }
+                    Err(e) => {
+                        let _ = window.emit("terminal-output", StreamOutput {
+                            content: format!("Error reading stdout: {}", e),
+                            output_type: "stderr".to_string(),
+                            current_dir: current_dir.clone(),
+                            should_replace_last: false,
+                        });
+                        break;
+                    }
                 }
             }
         })
     };
 
-    // Handle stderr in a separate task
+    // Handle stderr in a similar way
     let stderr_task = {
         let window = window_clone;
         let current_dir = current_dir_str;
         tauri::async_runtime::spawn(async move {
-            let reader = BufReader::new(stderr);
-            for line in reader.lines() {
-                if let Ok(content) = line {
-                    let _ = window.emit("terminal-output", StreamOutput {
-                        content,
-                        output_type: "stderr".to_string(),
-                        current_dir: current_dir.clone(),
-                    });
+            let mut reader = BufReader::new(stderr);
+            let mut buffer = [0u8; 1024];
+            let mut current_line = String::new();
+            let mut last_status = String::new();
+            let mut is_progress_line = false;
+
+            loop {
+                match reader.read(&mut buffer) {
+                    Ok(0) => break, // EOF
+                    Ok(n) => {
+                        let chunk = String::from_utf8_lossy(&buffer[..n]);
+                        let cleaned_chunk = ANSI_ESCAPE_RE.replace_all(&chunk, "");
+                        
+                        for c in cleaned_chunk.chars() {
+                            match c {
+                                '\r' | '\n' => {
+                                    if !current_line.is_empty() {
+                                        if is_download_command {
+                                            // 检查是否是状态信息
+                                            if let Some(status_match) = STATUS_RE.find(&current_line) {
+                                                let new_status = status_match.as_str().to_string();
+                                                if new_status != last_status {
+                                                    last_status = new_status.clone();
+                                                    let _ = window.emit("terminal-output", StreamOutput {
+                                                        content: new_status,
+                                                        output_type: "stderr".to_string(),
+                                                        current_dir: current_dir.clone(),
+                                                        should_replace_last: false,
+                                                    });
+                                                }
+                                            } else if PROGRESS_RE.is_match(&current_line) {
+                                                is_progress_line = true;
+                                                let _ = window.emit("terminal-output", StreamOutput {
+                                                    content: current_line.clone(),
+                                                    output_type: "stderr".to_string(),
+                                                    current_dir: current_dir.clone(),
+                                                    should_replace_last: true,
+                                                });
+                                            } else if !current_line.trim().is_empty() {
+                                                let _ = window.emit("terminal-output", StreamOutput {
+                                                    content: current_line.clone(),
+                                                    output_type: "stderr".to_string(),
+                                                    current_dir: current_dir.clone(),
+                                                    should_replace_last: false,
+                                                });
+                                            }
+                                        } else {
+                                            let _ = window.emit("terminal-output", StreamOutput {
+                                                content: current_line.clone(),
+                                                output_type: "stderr".to_string(),
+                                                current_dir: current_dir.clone(),
+                                                should_replace_last: false,
+                                            });
+                                        }
+                                    }
+                                    current_line.clear();
+                                }
+                                _ => current_line.push(c),
+                            }
+                        }
+                        
+                        if !current_line.is_empty() && !is_progress_line && 
+                           !STATUS_RE.is_match(&current_line) {
+                            let _ = window.emit("terminal-output", StreamOutput {
+                                content: current_line.clone(),
+                                output_type: "stderr".to_string(),
+                                current_dir: current_dir.clone(),
+                                should_replace_last: false,
+                            });
+                        }
+                    }
+                    Err(e) => {
+                        let _ = window.emit("terminal-output", StreamOutput {
+                            content: format!("Error reading stderr: {}", e),
+                            output_type: "stderr".to_string(),
+                            current_dir: current_dir.clone(),
+                            should_replace_last: false,
+                        });
+                        break;
+                    }
                 }
             }
         })
@@ -273,6 +482,7 @@ async fn handle_cd_command<R: Runtime>(command: &str, window: tauri::Window<R>) 
             content: String::new(),
             output_type: "stdout".to_string(),
             current_dir: current_dir_str,
+            should_replace_last: false,
         });
         Ok(())
     } else {
@@ -282,6 +492,7 @@ async fn handle_cd_command<R: Runtime>(command: &str, window: tauri::Window<R>) 
             content: error_msg,
             output_type: "stderr".to_string(),
             current_dir: current_dir_str,
+            should_replace_last: false,
         });
         Ok(())
     }
