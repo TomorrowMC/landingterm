@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import { writeText } from '@tauri-apps/api/clipboard';
 import './styles.css';
-import { IconChevronDown, IconStar } from '@tabler/icons-react';
+import { IconChevronDown, IconStar, IconPlayerStop } from '@tabler/icons-react';
 import { CommandBlock } from './CommandBlock';
 import { FavoriteCommands } from './FavoriteCommands';
 import { TerminalProps, CommandBlock as CommandBlockType, StreamOutput, ContextMenuPosition } from './types';
@@ -500,6 +500,17 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     }
   };
 
+  const handleStopCommand = async () => {
+    if (!isExecuting) return;
+    try {
+      await invoke('stop_command', { terminalId: id });
+      setIsExecuting(false);
+      setCurrentCommandBlock(null);
+    } catch (error) {
+      console.error('Failed to stop command:', error);
+    }
+  };
+
   // 修改 ESC 键处理
   useEffect(() => {
     const handleEscKey = (e: KeyboardEvent) => {
@@ -564,6 +575,15 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
               />
             </div>
             <div className="terminal-input-tools">
+              {isExecuting && (
+                <button
+                  className="terminal-icon-button stop"
+                  onClick={handleStopCommand}
+                  title="Stop current command"
+                >
+                  <IconPlayerStop size={16} />
+                </button>
+              )}
               <button
                 className={`terminal-icon-button ${isOpen ? 'active' : ''}`}
                 onClick={() => {

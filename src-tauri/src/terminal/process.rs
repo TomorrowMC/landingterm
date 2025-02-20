@@ -15,6 +15,7 @@ lazy_static! {
     static ref CURRENT_DIR: Mutex<PathBuf> = Mutex::new(
         env::var("HOME").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from("/"))
     );
+    static ref RUNNING_PROCESSES: Mutex<HashMap<String, std::process::Child>> = Mutex::new(HashMap::new());
 }
 
 // 存储所有终端进程的全局 HashMap
@@ -212,7 +213,6 @@ pub async fn execute_command_stream<R: Runtime>(
             .stderr(std::process::Stdio::piped())
             .spawn()
     } else {
-        // 如果没有unbuffer，尝试使用script命令
         Command::new("script")
             .current_dir(&current_dir)
             .arg("-q")
@@ -225,10 +225,14 @@ pub async fn execute_command_stream<R: Runtime>(
             .spawn()
     }.map_err(|e| e.to_string())?;
 
+    // 在存储到RUNNING_PROCESSES之前，先获取stdout和stderr
     let stdout = child.stdout.take()
         .ok_or_else(|| "Failed to capture stdout".to_string())?;
     let stderr = child.stderr.take()
         .ok_or_else(|| "Failed to capture stderr".to_string())?;
+
+    // 将进程存储到全局HashMap中
+    RUNNING_PROCESSES.lock().unwrap().insert(terminalId.clone(), child);
 
     let window_clone = window.clone();
     let current_dir_str = format_current_dir(&current_dir);
@@ -450,12 +454,19 @@ pub async fn execute_command_stream<R: Runtime>(
         })
     };
 
-    // Wait for the command to complete
-    let status = child.wait().map_err(|e| e.to_string())?;
-    
-    // Wait for output handlers to complete
+    // Wait for output handlers to complete first
     let _ = stdout_task.await;
     let _ = stderr_task.await;
+
+    // Then handle the process completion
+    let status = {
+        let mut processes = RUNNING_PROCESSES.lock().unwrap();
+        if let Some(mut child) = processes.remove(&terminalId) {
+            child.wait().map_err(|e| e.to_string())?
+        } else {
+            return Err("Process not found".to_string());
+        }
+    };
 
     // Emit command completion event with terminal ID
     let _ = window.emit("terminal-command-complete", serde_json::json!({
@@ -520,4 +531,13 @@ async fn handle_cd_command<R: Runtime>(
         });
         Ok(())
     }
+}
+
+#[tauri::command]
+pub async fn stop_command(terminal_id: String) -> Result<(), String> {
+    let mut processes = RUNNING_PROCESSES.lock().map_err(|e| e.to_string())?;
+    if let Some(mut child) = processes.remove(&terminal_id) {
+        child.kill().map_err(|e| e.to_string())?;
+    }
+    Ok(())
 } 

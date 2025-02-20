@@ -16,7 +16,8 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             execute_terminal_command,
-            terminal::process::execute_command_stream
+            terminal::process::execute_command_stream,
+            terminal::process::stop_command
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

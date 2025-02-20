@@ -56,8 +56,14 @@
   }
 
   .terminal-icon-button {
-    @apply p-1 rounded-md hover:bg-terminal-300 transition-colors duration-200
-           text-terminal-600 hover:text-white cursor-pointer relative;
+    @apply p-1.5 rounded-md transition-all duration-200
+           text-terminal-600 hover:text-white
+           bg-terminal-300/30 hover:bg-terminal-300
+           flex items-center justify-center;
+  }
+
+  .terminal-icon-button.stop {
+    @apply text-accent-red hover:text-accent-red hover:bg-terminal-300/50;
   }
 
   .terminal-icon-button.active {
