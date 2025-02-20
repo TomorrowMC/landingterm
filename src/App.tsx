@@ -41,11 +41,13 @@ function App() {
 
   return (
     <div className="app">
-      <Tabs 
-        onTabChange={handleTabChange} 
-        onAddTab={handleAddTab}
-        onCloseTab={handleCloseTab}
-      />
+      <div className="titlebar" data-tauri-drag-region>
+        <Tabs 
+          onTabChange={handleTabChange} 
+          onAddTab={handleAddTab}
+          onCloseTab={handleCloseTab}
+        />
+      </div>
       <div className="terminals-container">
         {terminals.map(term => (
           <div 

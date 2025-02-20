@@ -70,7 +70,7 @@
   }
 
   .titlebar {
-    @apply bg-zinc-900 h-[30px] select-none flex justify-center items-center text-white text-sm;
+    @apply bg-zinc-900 h-[30px] select-none flex justify-start items-center text-white text-sm;
   }
 
   .titlebar-button {
@@ -90,42 +90,44 @@
   }
 
   .tabs-container {
-    @apply bg-terminal-100 px-2 pt-2 border-b border-terminal-300;
+    @apply bg-terminal-100 px-2 flex items-center h-[30px] drag;
   }
 
   .tabs {
-    @apply flex gap-1 h-9 items-center;
+    @apply flex gap-1 items-center;
   }
 
   .tab {
-    @apply h-8 bg-terminal-50 px-3 rounded-t-md flex items-center gap-2 cursor-pointer select-none
-           font-['SF_Pro_Text',-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif] text-sm
-           text-terminal-600 border border-transparent border-b-0 transition-all duration-200
-           min-w-[120px] justify-between relative animate-slide-in;
-  }
-
-  .tab:hover {
-    @apply bg-terminal-200 text-terminal-700;
+    @apply flex items-center gap-1 px-3 py-1 rounded-md text-sm text-terminal-600
+           hover:text-white hover:bg-terminal-300 cursor-pointer transition-colors duration-200
+           no-drag;
   }
 
   .tab.active {
-    @apply bg-terminal text-white border-terminal-300 h-[33px] -mb-px;
+    @apply bg-terminal-200 text-white;
   }
 
-  .tab::after {
-    @apply content-[''] absolute bottom-0 left-0 right-0 h-0.5 bg-transparent transition-colors duration-200;
+  .tab-close {
+    @apply p-0.5 rounded hover:bg-terminal-400 opacity-0 group-hover:opacity-100
+           transition-opacity duration-200;
   }
 
-  .tab:hover::after {
-    @apply bg-terminal-500;
+  .tab-name-input {
+    @apply bg-terminal border border-terminal-300 rounded text-white text-sm px-1.5 py-0.5
+           w-20 max-w-[80px] outline-none h-[22px] focus:border-accent-blue focus:shadow-[0_0_0_1px_#007acc];
   }
 
-  .tab.active::after {
-    @apply bg-accent-blue;
+  .tab-name {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap flex-1;
+  }
+
+  .tab-name-input {
+    @apply bg-terminal border border-terminal-300 rounded text-white text-sm px-1.5 py-0.5
+           w-20 max-w-[80px] outline-none h-[22px] focus:border-accent-blue focus:shadow-[0_0_0_1px_#007acc];
   }
 
   .close-tab {
-    @apply bg-transparent border-none text-inherit cursor-pointer px-1.5 py-0.5 text-base rounded
+    @apply bg-transparent border-none text-inherit cursor-pointer px-1 py-0.5 text-base rounded
            flex items-center justify-center transition-all duration-200 opacity-60;
   }
 
@@ -138,7 +140,7 @@
   }
 
   .new-tab {
-    @apply bg-transparent border-none text-terminal-600 cursor-pointer w-8 h-8 text-xl rounded-md
+    @apply bg-transparent border-none text-terminal-600 cursor-pointer w-6 h-6 text-lg rounded-md
            flex items-center justify-center transition-all duration-200 ml-1;
   }
 
@@ -168,14 +170,5 @@
 
   .tab-content {
     @apply flex-1 min-w-0 flex items-center;
-  }
-
-  .tab-name {
-    @apply overflow-hidden text-ellipsis whitespace-nowrap flex-1;
-  }
-
-  .tab-name-input {
-    @apply bg-terminal border border-terminal-300 rounded text-white text-sm px-1.5 py-0.5
-           w-20 max-w-[80px] outline-none h-[22px] focus:border-accent-blue focus:shadow-[0_0_0_1px_#007acc];
   }
 } 

@@ -3,8 +3,9 @@ import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import { writeText } from '@tauri-apps/api/clipboard';
 import './styles.css';
-import { IconChevronDown } from '@tabler/icons-react';
+import { IconChevronDown, IconStar } from '@tabler/icons-react';
 import { CommandBlock } from './CommandBlock';
+import { FavoriteCommands } from './FavoriteCommands';
 import { TerminalProps, CommandBlock as CommandBlockType, StreamOutput, ContextMenuPosition } from './types';
 
 interface CommandResult {
@@ -177,6 +178,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [currentCommandBlock, setCurrentCommandBlock] = useState<CommandBlockType | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
+  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
 
   const scrollToBottom = (delay: number = 0) => {
     setTimeout(() => {
@@ -252,6 +254,10 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
       
       if (ignoredKeys.includes(e.key)) return;
 
+      // 检查当前是否有多个输入框
+      const inputElements = document.querySelectorAll('input[type="text"]');
+      if (inputElements.length > 1) return;
+
       // 如果当前焦点是在可编辑元素上，不要改变焦点
       const activeElement = document.activeElement;
       if (
@@ -270,8 +276,11 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('keydown', handleKeyDown);
     
-    // 确保组件挂载时输入框获得焦点
-    inputRef.current?.focus();
+    // 组件挂载时，只有在没有其他输入框的情况下才自动聚焦
+    const inputElements = document.querySelectorAll('input[type="text"]');
+    if (inputElements.length === 1) {
+      inputRef.current?.focus();
+    }
     
     return () => {
       document.removeEventListener('mousedown', handleMouseDown);
@@ -371,47 +380,71 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     }
   };
 
+  const handleSelectFavoriteCommand = (command: string) => {
+    setInput(command);
+    setIsFavoritesOpen(false);
+    inputRef.current?.focus();
+  };
+
   return (
     <div className="terminal-wrapper">
-      <div className="terminal-scroll-container" ref={terminalRef}>
-        <div className="terminal-content">
-          <div className="terminal-blocks">
-            {commandBlocks.map((block) => (
-              <CommandBlock key={block.id} {...block} />
-            ))}
+      <div className={`terminal-main-content ${isFavoritesOpen ? 'with-panel' : ''}`}>
+        <div className="terminal-scroll-container" ref={terminalRef}>
+          <div className="terminal-content">
+            <div className="terminal-blocks">
+              {commandBlocks.map((block) => (
+                <CommandBlock key={block.id} {...block} />
+              ))}
+            </div>
+          </div>
+        </div>
+        {!autoScroll && (
+          <button 
+            className={`scroll-to-bottom ${!autoScroll ? 'visible' : ''} ${isFavoritesOpen ? 'with-panel' : ''}`}
+            onClick={() => {
+              setAutoScroll(true);
+              scrollToBottom();
+            }}
+            title="Scroll to bottom"
+          >
+            <IconChevronDown size={16} />
+          </button>
+        )}
+        <div className={`terminal-input-container ${isFavoritesOpen ? 'with-panel' : ''}`}>
+          <div className="terminal-input-line">
+            <div className="terminal-input-main">
+              <span className="prompt">{currentDir} $ </span>
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="terminal-input"
+                autoFocus
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
+                autoComplete="off"
+              />
+            </div>
+            <div className="terminal-input-tools">
+              <button
+                className="terminal-icon-button"
+                onClick={() => setIsFavoritesOpen(true)}
+                title="Favorite Commands"
+              >
+                <IconStar size={18} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
-      {!autoScroll && (
-        <button 
-          className={`scroll-to-bottom ${!autoScroll ? 'visible' : ''}`}
-          onClick={() => {
-            setAutoScroll(true);
-            scrollToBottom();
-          }}
-          title="Scroll to bottom"
-        >
-          ▼
-        </button>
-      )}
-      <div className="terminal-input-container">
-        <div className="terminal-input-line">
-          <span className="prompt">{currentDir} $ </span>
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            className="terminal-input"
-            autoFocus
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck="false"
-            autoComplete="off"
-          />
-        </div>
-      </div>
+      <FavoriteCommands
+        isOpen={isFavoritesOpen}
+        onClose={() => setIsFavoritesOpen(false)}
+        onSelectCommand={handleSelectFavoriteCommand}
+      />
     </div>
   );
 };

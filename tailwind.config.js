@@ -58,6 +58,18 @@ export default {
   },
   plugins: [
     require('tailwind-scrollbar')({ nocompatible: true }),
+    function({ addUtilities }) {
+      addUtilities({
+        '.drag': {
+          '-webkit-app-region': 'drag',
+          'app-region': 'drag',
+        },
+        '.no-drag': {
+          '-webkit-app-region': 'no-drag',
+          'app-region': 'no-drag',
+        },
+      })
+    }
   ],
 }
 

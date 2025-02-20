@@ -4,17 +4,25 @@
 
 @layer components {
   .terminal-wrapper {
-    @apply flex-1 flex flex-col bg-terminal text-white font-terminal p-4 overflow-hidden relative;
+    @apply flex-1 flex bg-terminal text-white font-terminal p-4 overflow-hidden relative;
+  }
+
+  .terminal-main-content {
+    @apply flex-1 flex flex-col transition-all duration-300 ease-in-out;
+  }
+
+  .terminal-main-content.with-panel {
+    @apply mr-80;
   }
 
   .terminal-scroll-container {
-    @apply flex-1 overflow-y-auto overflow-x-hidden relative pb-4 mb-[60px]
+    @apply flex-1 overflow-y-auto overflow-x-hidden relative
            scrollbar scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20 
            hover:scrollbar-thumb-white/30;
   }
 
   .terminal-content {
-    @apply flex flex-col min-h-full;
+    @apply flex flex-col min-h-full pb-[120px];
   }
 
   .terminal-blocks {
@@ -22,12 +30,34 @@
   }
 
   .terminal-input-container {
-    @apply absolute bottom-4 left-4 right-4 bg-terminal z-10;
+    @apply fixed bottom-4 right-4 bg-terminal z-10 transition-all duration-300 ease-in-out;
+    left: 1rem;
+  }
+
+  .terminal-input-container.with-panel {
+    right: 21rem;
   }
 
   .terminal-input-line {
-    @apply mt-2 bg-terminal-input rounded-lg p-3 flex items-center border border-terminal-300
-           shadow-lg backdrop-blur-md;
+    @apply bg-terminal-input rounded-lg flex flex-col border border-terminal-300
+           shadow-lg backdrop-blur-md overflow-hidden;
+  }
+
+  .terminal-input-main {
+    @apply flex items-center p-3;
+  }
+
+  .terminal-input-tools {
+    @apply flex items-center px-3 py-2 border-t border-terminal-300 bg-terminal-200/50;
+  }
+
+  .terminal-input-icons {
+    @apply absolute -bottom-8 left-2 flex gap-2 items-center;
+  }
+
+  .terminal-icon-button {
+    @apply p-1.5 rounded-md hover:bg-terminal-300 transition-colors duration-200
+           text-terminal-600 hover:text-white cursor-pointer;
   }
 
   .prompt {
@@ -44,11 +74,12 @@
   }
 
   .command-input {
-    @apply p-3 bg-terminal-200 border-b border-terminal-300 flex items-center;
+    @apply bg-terminal border border-terminal-300 rounded-md px-3 py-2 text-white
+           placeholder-terminal-600 focus:border-accent-blue focus:outline-none;
   }
 
   .command-text {
-    @apply text-white font-medium break-all;
+    @apply block text-xs text-terminal-600;
   }
 
   .command-output {
@@ -65,8 +96,12 @@
 
   .scroll-to-bottom {
     @apply fixed right-12 bottom-[100px] bg-terminal-400/80 border-none rounded-lg w-10 h-8
-           flex items-center justify-center cursor-pointer transition-all duration-200
-           opacity-0 translate-y-5 z-[1000] p-0 shadow-lg text-sm;
+           flex items-center justify-center cursor-pointer transition-all duration-300
+           opacity-0 translate-y-5 z-[1000] p-0 shadow-lg text-sm ease-in-out;
+  }
+
+  .scroll-to-bottom.with-panel {
+    right: 21rem;
   }
 
   .scroll-to-bottom.visible {
@@ -109,5 +144,61 @@
 
   .copy-status {
     @apply text-xs opacity-80 text-accent-green ml-2;
+  }
+
+  .favorite-commands-panel {
+    @apply fixed right-0 top-0 bottom-0 w-80 bg-terminal-100 border-l border-terminal-300
+           flex flex-col animate-slide-in z-20;
+  }
+
+  .favorite-commands-header {
+    @apply flex justify-between items-center p-4 border-b border-terminal-300;
+  }
+
+  .favorite-commands-header h3 {
+    @apply text-lg font-medium text-white m-0;
+  }
+
+  .close-button {
+    @apply p-1 rounded-md hover:bg-terminal-300 transition-colors duration-200
+           text-terminal-600 hover:text-white;
+  }
+
+  .favorite-commands-content {
+    @apply flex-1 overflow-y-auto p-4 flex flex-col gap-4;
+  }
+
+  .add-command-section {
+    @apply flex flex-col gap-2;
+  }
+
+  .add-button {
+    @apply bg-accent-blue text-white rounded-md px-3 py-2 flex items-center justify-center
+           hover:bg-accent-blue/90 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .commands-list {
+    @apply flex flex-col gap-2;
+  }
+
+  .command-item {
+    @apply flex items-center gap-2 bg-terminal-200 rounded-md p-2;
+  }
+
+  .command-item:hover .delete-button {
+    @apply opacity-100;
+  }
+
+  .command-content {
+    @apply flex-1 cursor-pointer hover:bg-terminal-300 rounded p-2;
+  }
+
+  .command-name {
+    @apply block text-sm font-medium text-white mb-1;
+  }
+
+  .delete-button {
+    @apply p-1 rounded-md hover:bg-terminal-300 transition-colors duration-200
+           text-terminal-600 hover:text-accent-red opacity-0;
   }
 } 
