@@ -19,6 +19,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("terminal")
         .invoke_handler(tauri::generate_handler![
             terminal::process::execute_command,
+            terminal::process::execute_command_stream,
             terminal::process::create_terminal,
             terminal::process::close_terminal,
         ])

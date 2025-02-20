@@ -14,7 +14,10 @@ async fn execute_terminal_command(command: String) -> Result<terminal::process::
 fn main() {
     println!("Starting Landing Terminal...");
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![execute_terminal_command])
+        .invoke_handler(tauri::generate_handler![
+            execute_terminal_command,
+            terminal::process::execute_command_stream
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

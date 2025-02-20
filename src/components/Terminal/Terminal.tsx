@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import './styles.css';
 import { IconChevronDown } from '@tabler/icons-react';
 
@@ -18,6 +19,12 @@ interface CommandBlock {
   command: string;
   output: string[];
   directory: string;
+}
+
+interface StreamOutput {
+  content: string;
+  output_type: string;
+  current_dir: string;
 }
 
 const CommandBlockComponent: React.FC<CommandBlock> = ({ command, output, directory }) => (
@@ -48,6 +55,7 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
   const scrollTimeout = useRef<NodeJS.Timeout>();
   const [isExecuting, setIsExecuting] = useState(false);
   const lastOutputRef = useRef<string>('');
+  const [currentCommandBlock, setCurrentCommandBlock] = useState<CommandBlock | null>(null);
 
   // 简化的滚动到底部函数
   const scrollToBottom = (delay: number = 0) => {
@@ -91,10 +99,8 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
 
   // 初始化终端
   useEffect(() => {
-    invoke<CommandResult>('execute_terminal_command', { command: 'pwd' })
-      .then(result => {
-        setCurrentDir(result.current_dir);
-      })
+    // 使用新的流式命令来获取当前目录
+    invoke('execute_command_stream', { command: 'pwd' })
       .catch(console.error);
 
     invoke('create_terminal', { id });
@@ -113,34 +119,66 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
     return () => document.removeEventListener('click', handleClick);
   }, []);
 
+  useEffect(() => {
+    const setupListeners = async () => {
+      const unlisten = await listen<StreamOutput>('terminal-output', (event) => {
+        const { content, output_type, current_dir } = event.payload;
+        
+        setCurrentDir(current_dir);
+
+        if (currentCommandBlock) {
+          setCommandBlocks(prev => {
+            const newBlocks = [...prev];
+            const lastBlock = newBlocks[newBlocks.length - 1];
+            
+            if (content) {
+              lastBlock.output.push(content);
+            }
+            
+            return newBlocks;
+          });
+        }
+      });
+
+      const unlistenComplete = await listen<number | null>('terminal-command-complete', () => {
+        setCurrentCommandBlock(null);
+        setIsExecuting(false);
+        scrollToBottom(50);
+      });
+
+      return () => {
+        unlisten();
+        unlistenComplete();
+      };
+    };
+
+    setupListeners();
+  }, [currentCommandBlock]);
+
   const handleKeyPress = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       
       try {
         setIsExecuting(true);
-        setAutoScroll(true); // 确保启用自动滚动
-        scrollToBottom(0); // 立即滚动到底部显示输入的命令
-        
-        const result = await invoke<CommandResult>('execute_terminal_command', { command: input });
+        setAutoScroll(true);
+        scrollToBottom(0);
+
+        // Create a new command block
         const newBlock: CommandBlock = {
           id: blockId,
           command: input,
-          output: [
-            ...(result.stdout ? result.stdout.split('\n') : []),
-            ...(result.stderr ? result.stderr.split('\n') : [])
-          ].filter(line => line.length > 0),
+          output: [],
           directory: currentDir
         };
         
         setCommandBlocks(prev => [...prev, newBlock]);
+        setCurrentCommandBlock(newBlock);
         setBlockId(prev => prev + 1);
-        setCurrentDir(result.current_dir);
         setInput('');
-        
-        // 命令执行完成后滚动
-        scrollToBottom(50);
-        setIsExecuting(false);
+
+        // Execute the command with streaming
+        await invoke('execute_command_stream', { command: input });
       } catch (error) {
         const errorBlock: CommandBlock = {
           id: blockId,
@@ -148,10 +186,12 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
           output: [`Error: ${error}`],
           directory: currentDir
         };
+        
         setCommandBlocks(prev => [...prev, errorBlock]);
         setBlockId(prev => prev + 1);
         setInput('');
         setIsExecuting(false);
+        setCurrentCommandBlock(null);
         scrollToBottom(50);
       }
     }
