@@ -1,4 +1,4 @@
-import create from 'zustand';
+import { create } from 'zustand';
 import { Store } from 'tauri-plugin-store-api';
 import { appDataDir } from '@tauri-apps/api/path';
 import { emit, listen } from '@tauri-apps/api/event';
@@ -22,16 +22,28 @@ interface FavoriteStore {
 
 // 创建一个全局的 store 实例
 let globalStore: Store | null = null;
+let unlistenFns: (() => void)[] = [];
 
 const useFavoriteStore = create<FavoriteStore>((set, get) => {
-  // 设置事件监听器
-  listen<boolean>('favorite-panel-state-changed', (event) => {
-    set({ isOpen: event.payload });
-  });
+  const setupListeners = async () => {
+    // 清理之前的监听器
+    unlistenFns.forEach(fn => fn());
+    unlistenFns = [];
 
-  listen<FavoriteCommand[]>('favorite-commands-changed', (event) => {
-    set({ commands: event.payload });
-  });
+    // 设置新的监听器
+    const unlistenState = await listen<boolean>('favorite-panel-state-changed', (event) => {
+      set({ isOpen: event.payload });
+    });
+
+    const unlistenCommands = await listen<FavoriteCommand[]>('favorite-commands-changed', (event) => {
+      set({ commands: event.payload });
+    });
+
+    unlistenFns.push(unlistenState, unlistenCommands);
+  };
+
+  // 初始化时设置监听器
+  setupListeners().catch(console.error);
 
   return {
     isOpen: false,
