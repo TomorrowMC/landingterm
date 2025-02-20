@@ -106,13 +106,15 @@
   }
 
   .scroll-to-bottom {
-    @apply fixed right-12 bottom-[100px] bg-terminal-400/80 border-none rounded-lg w-10 h-8
+    @apply fixed bg-terminal-400/80 border-none rounded-lg w-10 h-8
            flex items-center justify-center cursor-pointer transition-all duration-300
            opacity-0 translate-y-5 z-[1000] p-0 shadow-lg text-sm ease-in-out;
+    right: calc(1rem + 48px);  /* 16px(right-4) + 32px(button width + margin) */
+    bottom: var(--input-offset, 100px);
   }
 
   .scroll-to-bottom.with-panel {
-    right: 21rem;
+    right: calc(21rem + 48px);  /* 336px(mr-80) + 32px(button width + margin) */
   }
 
   .scroll-to-bottom.visible {

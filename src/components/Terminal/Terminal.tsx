@@ -221,7 +221,11 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
       const inputContainer = textarea.closest('.terminal-input-line');
       if (inputContainer) {
         const totalHeight = inputContainer.getBoundingClientRect().height;
-        setInputHeight(totalHeight + 32); // 32px for bottom margin
+        const newInputHeight = totalHeight + 32; // 32px for bottom margin
+        setInputHeight(newInputHeight);
+
+        // 更新scroll-to-bottom按钮的位置
+        document.documentElement.style.setProperty('--input-offset', `${newInputHeight + 16}px`);
 
         // 如果高度发生变化，自动滚动到底部
         if (previousHeight !== textarea.style.height) {
@@ -509,6 +513,13 @@ export const Terminal: React.FC<TerminalProps> = ({ id }) => {
       document.removeEventListener('keydown', handleEscKey);
     };
   }, [isOpen, setIsOpen]);
+
+  // 组件卸载时清理CSS变量
+  useEffect(() => {
+    return () => {
+      document.documentElement.style.removeProperty('--input-offset');
+    };
+  }, []);
 
   return (
     <div className="terminal-wrapper">
