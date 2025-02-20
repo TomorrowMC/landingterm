@@ -10,6 +10,10 @@ use std::io::{BufReader, Read};
 use tauri::Runtime;
 use regex::Regex;
 use serde_json;
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
+#[cfg(windows)]
+use std::os::windows::process::ExitStatusExt;
 
 lazy_static! {
     static ref CURRENT_DIR: Mutex<PathBuf> = Mutex::new(
@@ -461,11 +465,39 @@ pub async fn execute_command_stream<R: Runtime>(
     // Then handle the process completion
     let status = {
         let mut processes = RUNNING_PROCESSES.lock().unwrap();
-        if let Some(mut child) = processes.remove(&terminalId) {
-            child.wait().map_err(|e| e.to_string())?
-        } else {
-            return Err("Process not found".to_string());
-        }
+        match processes.remove(&terminalId) {
+            Some(mut child) => {
+                match child.wait().map_err(|e| e.to_string()) {
+                    Ok(status) => Ok(status),
+                    Err(e) => {
+                        // 如果进程已经被终止，静默处理这个错误
+                        if e.contains("No such process") || e.contains("Process not found") {
+                            #[cfg(unix)]
+                            {
+                                Ok(ExitStatusExt::from_raw(1))
+                            }
+                            #[cfg(windows)]
+                            {
+                                Ok(ExitStatusExt::from_raw(1 << 8))
+                            }
+                        } else {
+                            Err(e)
+                        }
+                    }
+                }
+            },
+            None => {
+                // 如果进程不存在（可能已经被停止），返回一个表示中断的状态
+                #[cfg(unix)]
+                {
+                    Ok(ExitStatusExt::from_raw(1))
+                }
+                #[cfg(windows)]
+                {
+                    Ok(ExitStatusExt::from_raw(1 << 8))
+                }
+            }
+        }?
     };
 
     // Emit command completion event with terminal ID
@@ -534,10 +566,26 @@ async fn handle_cd_command<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn stop_command(terminal_id: String) -> Result<(), String> {
+pub async fn stop_command<R: Runtime>(
+    window: tauri::Window<R>,
+    terminal_id: String
+) -> Result<(), String> {
     let mut processes = RUNNING_PROCESSES.lock().map_err(|e| e.to_string())?;
     if let Some(mut child) = processes.remove(&terminal_id) {
         child.kill().map_err(|e| e.to_string())?;
+        
+        // 获取当前目录用于输出消息
+        let current_dir = CURRENT_DIR.lock().unwrap();
+        let current_dir_str = format_current_dir(&current_dir);
+        
+        // 发送用户停止的消息
+        let _ = window.emit("terminal-output", StreamOutput {
+            content: "用户已停止命令".to_string(),
+            output_type: "stderr".to_string(),
+            current_dir: current_dir_str,
+            should_replace_last: false,
+            terminalId: terminal_id,
+        });
     }
     Ok(())
 } 
